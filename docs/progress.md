@@ -21,15 +21,15 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-19                                 |
 | Active Phase       | Spec Gate (pre-Phase 0a)                   |
-| Overall Progress   | Not started                                |
-| Last Significant Entry | Initializing progress tracking          |
+| Overall Progress   | Spec Gate in progress                      |
+| Last Significant Entry | Created docs/problem-evidence.md + data-zones.md |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
 Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the artifact exists, is reviewed against the PRD, and the entry is logged below.
 
-- [ ] `docs/problem-evidence.md` written (top 3 tasks, workarounds, 10 manual queries)
-- [ ] `docs/data-zones.md` — path → DataZone mapping table
+- [x] `docs/problem-evidence.md` written (top 3 tasks, workarounds, 10 manual queries) — 2026-06-19
+- [x] `docs/data-zones.md` — path → DataZone mapping table — 2026-06-19
 - [ ] `eval/golden_queries.yaml` (≥30 public-safe queries)
 - [ ] `docs/adr/001-vector-store-and-models.md`
 - [ ] `docs/adr/002-chunking-contract.md`
@@ -128,6 +128,18 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Created docs/data-zones.md
+- Fulfilled PRD §10 DataZone Enforcement requirement and next spec gate checklist item per AGENTS.md. Created clear path → DataZone mapping table covering PERSONAL, WORK_ADJACENT, PUBLIC_DEMO with cloud rules, example paths, retrieval enforcement, and detailed `.secondbrainignore` interaction.
+- Documents ingest assignment flow, override mechanisms, zone filter requirements for router/retriever, and example fictional mappings.
+- No code changes; artifact is public-safe, high-signal, and directly usable as the implementation contract for Phase 0/1.
+- Advances Spec Gate: data-zones.md complete. Two of eight gate items now green.
+
+### 2026-06-19 — Created docs/problem-evidence.md
+- Fulfilled PRD §4 requirement and first spec gate checklist item. Documented 3 recurring knowledge tasks (weekly synthesis, pre-meeting prep, cross-doc theme synthesis), current workarounds and their failure modes, and 10 concrete manual query examples using only generalized fictional scenarios (Acme, Project Phoenix/Falcon, etc.).
+- Justifies structure-aware chunking, hybrid retrieval, metadata filters, wikilink handling, and zone-aware design before any implementation.
+- No code or real note content added. Artifact is public-safe and high-signal for future golden queries and retrieval work.
+- Advances Spec Gate: problem-evidence.md complete.
 
 ### 2026-06-19 — Autonomous build loop prompt
 - Created `docs/autonomous-loop-prompt.md` — the complete, self-contained prompt for the loop skill / scheduler. Enables safe, rule-following autonomous work on the PRD while owner is away.
