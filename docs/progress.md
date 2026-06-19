@@ -20,9 +20,9 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 |--------------------|--------------------------------------------|
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-19                                 |
-| Active Phase       | Spec Gate (pre-Phase 0a)                   |
-| Overall Progress   | Spec Gate complete                         |
-| Last Significant Entry | Spec Gate 100% (demo + golden_queries) |
+| Active Phase       | Phase 0a — Markdown + Baseline             |
+| Overall Progress   | In Progress                                |
+| Last Significant Entry | Phase 0a start: scaffold + Chunker |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -41,7 +41,7 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 ## Phase Status
 
 ### Phase 0a — Markdown + Baseline (target 2–3 days)
-**Status:** Not Started
+**Status:** In Progress (started)
 
 **Deliverables (per PRD §12):**
 - Repo scaffolding
@@ -128,6 +128,12 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Phase 0a start: scaffold + Chunker
+- Spec Gate 100% complete (per progress). Started Phase 0a: created pyproject.toml (pinned: typer, pydantic, tiktoken, pytest) with src/ layout and 'sb' entry point. Implemented first item per order: Chunker (src/second_brain/chunker.py) exactly matching PRD §8 / ADR-002 contract (H1-H3 aware, 400-800 tokens, 80-token overlap, atomic code blocks). Added Pydantic Chunk model + basic unit tests (tests/test_chunker.py). Syntax verified; full pytest skipped (no deps in base shell per AGENTS §4 Step 4).
+- One solid piece, tests with feature, relative paths, clean of secrets/PII. Post-change: git status/diff + exact AGENTS §4 scans passed.
+- Advances into Phase 0a (after full gate). Immortal baseline_rag path started. No real home paths used.
+- Logged per rules. Next in order: metadata models + LanceDB integration.
 
 ### 2026-06-19 — Created demo/ synthetic corpus
 - Fulfilled final spec gate item (AGENTS §5, PRD §16). Created 9 small .md files under demo/notes/ (PUBLIC_DEMO zone per data-zones.md) exercising: frontmatter (tags/date), H1-H3 headings, wikilinks, fenced code blocks (with options/perf), tables (risks, measurements), lists, dates, cross-doc references.
