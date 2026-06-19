@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Spec Gate (pre-Phase 0a)                   |
 | Overall Progress   | Spec Gate in progress                      |
-| Last Significant Entry | Created docs/problem-evidence.md + data-zones.md |
+| Last Significant Entry | Created ADR-001 and ADR-002 |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -31,8 +31,8 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 - [x] `docs/problem-evidence.md` written (top 3 tasks, workarounds, 10 manual queries) — 2026-06-19
 - [x] `docs/data-zones.md` — path → DataZone mapping table — 2026-06-19
 - [ ] `eval/golden_queries.yaml` (≥30 public-safe queries)
-- [ ] `docs/adr/001-vector-store-and-models.md`
-- [ ] `docs/adr/002-chunking-contract.md`
+- [x] `docs/adr/001-vector-store-and-models.md` — 2026-06-19
+- [x] `docs/adr/002-chunking-contract.md` — 2026-06-19
 - [ ] `.secondbrainignore` documented (README or ADR)
 - [ ] `.env.example` with placeholder keys (no real values)
 - [ ] `demo/` synthetic corpus exists (for public artifacts)
@@ -128,6 +128,19 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Created docs/adr/001-vector-store-and-models.md
+- Fulfilled spec gate requirement for ADR-001 (AGENTS §5, PRD §9/§16). Created proper ADR documenting frozen stack decision: LanceDB (vector), local nomic-embed-text (embeddings), Ollama (default LLM), LiteLLM (abstraction). Includes Context (privacy, DataZone, golden eval needs), Decision (exact choices + CLI typer preference note), Consequences, alternatives considered, and risks.
+- High-signal, references PRD/AGENTS/golden queries. Directly enables Phase 0a code.
+- Advances Spec Gate: 4 of 8 items complete (problem-evidence, data-zones, golden_queries, adr/001). No code yet.
+- Logged per pre-commit rules.
+
+### 2026-06-19 — Created docs/adr/002-chunking-contract.md
+- Fulfilled spec gate requirement for ADR-002 (AGENTS §5, PRD §8/§16, autonomous prompt). Created proper ADR justifying exact Chunking Contract v1: H1–H3 aware Markdown splits, 400–800 token targets, 80-token overlap, atomic code blocks (never split), per-chunk metadata (heading_path, chunk_index, source_line_range), and PDF section-aware handling.
+- Directly addresses failure modes from problem-evidence.md (lost heading context, split code/tables). References PRD table, AGENTS, golden queries, and implications for citations + baseline_rag.
+- High-signal, complete, ready for Phase 0a chunker implementation (Pydantic models + tests).
+- Advances Spec Gate: 5 of 8 items complete (problem-evidence, data-zones, golden_queries, adr/001, adr/002). No code yet.
+- Logged per pre-commit rules.
 
 ### 2026-06-19 — Created docs/data-zones.md
 - Fulfilled PRD §10 DataZone Enforcement requirement and next spec gate checklist item per AGENTS.md. Created clear path → DataZone mapping table covering PERSONAL, WORK_ADJACENT, PUBLIC_DEMO with cloud rules, example paths, retrieval enforcement, and detailed `.secondbrainignore` interaction.
