@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Phase 0a — Markdown + Baseline             |
 | Overall Progress   | In Progress                                |
-| Last Significant Entry | Phase 0a: local embeddings + LanceDB index + manifest |
+| Last Significant Entry | Phase 0a: Markdown ingest pipeline (sb ingest + --status) |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -128,6 +128,15 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Phase 0a: Markdown ingest pipeline (sb ingest + --status)
+- Implemented Phase 0a item 4 (next after embed/Lance/manifest): src/second_brain/ingest.py (find .md, load .secondbrainignore + should_ignore, resolve_zone with --zone/fm/path heuristic, _parse_frontmatter_zone, use parse_document + store.add_document, get_status wrapper).
+- src/second_brain/cli.py: typer app with `ingest` command supporting path arg + --zone + --status (prints manifest using store).
+- tests/test_ingest.py: unit tests (ignore matching, zone resolve precedence, ingest file/dir, frontmatter data_zone, status).
+- py_compile OK on new files; mocked python smoke exercising ingest logic + status (no tiktoken/ollama/lancedb needed at runtime).
+- Post: full git + exact AGENTS §4 scans passed. New files under sanctioned untracked (src/tests). No PII/secrets/real paths. Relative imports.
+- Advances Phase 0a (ingest pipeline + --status shows manifest). Ties chunk+meta+embed+store. Prepares baseline_rag. Follows data-zones + .secondbrainignore contracts.
+- Logged per pre-commit. Next: baseline_rag retriever + sb query CLI.
 
 ### 2026-06-19 — Phase 0a: local embeddings + LanceDB index + manifest
 - Implemented Phase 0a item 3 per strict order (after Chunker + metadata): added lancedb>=0.5.0 + ollama>=0.3.0 (pinned) to pyproject.toml.
