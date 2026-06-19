@@ -181,3 +181,28 @@ def parse_document(
     chunks = chunk_markdown(text)
     return meta, chunks
 
+
+class Citation(BaseModel):
+    source_path: str
+    heading: str = ""
+    quote_span: str = ""
+    chunk_id: str = ""
+
+
+class SynthesisResponse(BaseModel):
+    """Structured synthesis per PRD §8.
+
+    answer_markdown: the brief (or other profile) response.
+    profile: brief | standard | audit
+    citations: list of source refs with quote spans.
+    source_coverage, confidence, model_used etc.
+    """
+    answer_markdown: str
+    profile: str = "brief"
+    citations: List[Citation] = []
+    source_coverage: Dict[str, Any] = {}
+    confidence: str = "MEDIUM"
+    verifier_verdict: Optional[str] = None
+    trace_id: Optional[str] = None
+    egress: bool = False
+    model_used: str = ""

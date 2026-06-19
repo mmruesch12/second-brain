@@ -53,6 +53,82 @@ def ingest_cmd(
     )
 
 
+@app.command("query")
+def query_cmd(
+    question: str = typer.Argument(..., help="Question to answer from your notes"),
+    profile: str = typer.Option("brief", "--profile", "-p", help="Output profile: brief | standard | audit"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z", help="Restrict to DataZone"),
+    limit: int = typer.Option(5, "--limit", help="Max chunks to retrieve"),
+    json_out: bool = typer.Option(False, "--json", help="Output full JSON SynthesisResponse"),
+    debug: bool = typer.Option(False, "--debug", help="Show full trace / response"),
+) -> None:
+    """Answer a question using baseline retrieval + synthesis (default brief profile).
+
+    Uses immortal baseline_rag + synthesizer (1 LLM call).
+    """
+    # Import inside to avoid top-level dep on litellm when not needed (e.g. ingest only, smoke)
+    from src.second_brain.synthesizer import synthesize
+
+    resp = synthesize(question, limit=limit, zone=zone, profile=profile)
+
+    if json_out or debug:
+        # pydantic v2
+        try:
+            print(resp.model_dump_json(indent=2))
+        except Exception:
+            print(resp)
+    else:
+        print(resp.answer_markdown)
+
+    if debug:
+        typer.echo(f"\n[debug] model_used={resp.model_used} profile={resp.profile} confidence={resp.confidence}")
+
+
+@app.command("doctor")
+def doctor_cmd(
+    zone: Optional[str] = typer.Option(None, "--zone", help="Filter health to zone"),
+) -> None:
+    """Health check (smoke test for Phase 0a). Reports module status, acceptance, basic stats."""
+    typer.echo("sb doctor — Personal Agentic Second Brain health check")
+    issues = []
+
+    # Check core modules
+    try:
+        from src.second_brain import eval_harness
+        from src.second_brain.retriever import baseline_rag
+        from src.second_brain.synthesizer import synthesize
+        typer.echo("  Modules: OK (retriever, synthesizer, harness)")
+    except Exception as e:
+        issues.append(f"module load: {e}")
+
+    # Check demo corpus
+    try:
+        import glob
+        demo = glob.glob("demo/**/*.md", recursive=True)
+        typer.echo(f"  Demo corpus: {len(demo)} md files")
+    except Exception as e:
+        issues.append(f"demo glob: {e}")
+
+    # Verify acceptance (from harness)
+    try:
+        from src.second_brain.eval_harness import verify_phase0a_acceptance
+        v = verify_phase0a_acceptance()
+        typer.echo(f"  Phase 0a acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
+    except Exception as e:
+        issues.append(f"verify: {e}")
+
+    if zone:
+        typer.echo(f"  Zone filter: {zone}")
+
+    if issues:
+        typer.echo("  Issues:")
+        for i in issues:
+            typer.echo(f"    - {i}")
+    else:
+        typer.echo("  Status: healthy (Phase 0a smoke OK)")
+
+    raise typer.Exit(code=1 if issues else 0)
+
 
 @app.callback()
 def main() -> None:
