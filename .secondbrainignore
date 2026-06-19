@@ -1,0 +1,98 @@
+# .secondbrainignore
+# Gitignore-style patterns for the Personal Agentic Second Brain ingestion system (`sb ingest`).
+#
+# Purpose:
+# - Consulted **before** DataZone assignment, chunking, embedding, or indexing.
+# - Any matching path is **skipped entirely**: no metadata, no vectors, no zone, tombstone if previously ingested.
+# - Primary defense against ingesting secrets, PII, large binaries, and work-confidential content.
+# - Complements (does not replace) the repo's .gitignore.
+# - Works with the secret scanner (see AGENTS.md §3).
+#
+# Syntax: standard .gitignore rules (**, *, ! negation, etc.).
+# Location: root of notes corpus or project root (tool resolves relative to ingest root).
+#
+# References:
+# - PRD v0.2 §6 (Incremental ingest: content-hash IDs, tombstone on delete, `.secondbrainignore`)
+# - PRD §10 (Threat model: Ingested secrets → Secret scanner + .secondbrainignore)
+# - docs/data-zones.md (Interaction section: consulted before zone + chunking)
+# - AGENTS.md §3 (Never commit list, DataZone rules, secret scanner)
+#
+# Recommendations:
+# - Keep this file in version control (it contains no secrets).
+# - Use it to carve out sub-paths inside PERSONAL or WORK_ADJACENT zones.
+# - Review periodically with `sb ingest --status` (future).
+
+# === Secrets & Credentials (highest priority) ===
+**/.env
+**/.env.*
+**/.env.local
+**/*secret*
+**/*credential*
+**/*password*
+**/*.pem
+**/*.key
+**/id_rsa*
+**/auth.json
+**/credentials.json
+**/*-private.*
+
+# === Work-adjacent / Confidential subdirectories ===
+# Use specific subpaths so sibling files in the same zone are still ingested.
+work/**/legal/**
+work/**/nda/**
+work/**/confidential/**
+work/**/hr/**
+acme-project/secret-nda/**
+falcon-project/internal-only/**
+
+# === Personal exports & reflection artifacts (cross-ref .gitignore) ===
+actions.md
+actions/
+*.export.md
+*reflection*.md
+triage-*.md
+
+# === Large binaries, media, DBs, caches (avoid polluting index) ===
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.mov
+*.zip
+*.tar.gz
+*.sqlite
+*.db
+*.lancedb/**
+chroma/**
+**/.cache/**
+**/__pycache__/**
+**/.venv/**
+
+# === Local-only eval (real queries, results) ===
+eval/golden_queries.local.yaml
+eval/golden_queries.private.yaml
+eval/results/**
+
+# === Temp / scratch / logs ===
+**/*.tmp
+**/*.log
+**/tmp/**
+**/scratch/**
+**/drafts/**
+**/*-wip.*
+
+# === Example patterns for demo / PUBLIC_DEMO hygiene ===
+# (Normally you wouldn't ignore demo/ content, but these show the style)
+# demo/private-test-data/**
+
+# === Advanced: size-based (if your ingest tool supports) ===
+# *.[0-9]mb
+# *.[0-9][0-9]mb
+
+# Notes:
+# - Patterns are relative to the notes root being ingested.
+# - Use `!` negation sparingly and only for deliberate exceptions.
+# - After editing, run a dry ingest and review skipped counts.
+# - This file is public-safe and should be committed (unlike the actual ignored content).

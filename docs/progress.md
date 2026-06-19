@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Spec Gate (pre-Phase 0a)                   |
 | Overall Progress   | Spec Gate in progress                      |
-| Last Significant Entry | Created ADR-001 and ADR-002 |
+| Last Significant Entry | Created .secondbrainignore + .env.example |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -33,8 +33,8 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 - [ ] `eval/golden_queries.yaml` (≥30 public-safe queries)
 - [x] `docs/adr/001-vector-store-and-models.md` — 2026-06-19
 - [x] `docs/adr/002-chunking-contract.md` — 2026-06-19
-- [ ] `.secondbrainignore` documented (README or ADR)
-- [ ] `.env.example` with placeholder keys (no real values)
+- [x] `.secondbrainignore` documented (README or ADR) — 2026-06-19
+- [x] `.env.example` with placeholder keys (no real values) — 2026-06-19
 - [ ] `demo/` synthetic corpus exists (for public artifacts)
 - [x] `docs/progress.md` initialized (this file) — 2026-06-19
 
@@ -128,6 +128,18 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Created .secondbrainignore
+- Fulfilled spec gate item for `.secondbrainignore` (AGENTS §5, PRD §6/§10). Created root-level gitignore-style file with excellent comments, references to PRD/data-zones/AGENTS, and categorized examples (secrets, work-confidential subdirs using fictional Acme/Falcon projects, personal exports, binaries, eval locals, temp files).
+- Documents interaction with zone assignment + chunking (skips before any processing, per data-zones.md). High-signal, directly usable by future `sb ingest`.
+- Advances Spec Gate: 6 of 8 items complete. No code yet.
+- Logged per pre-commit rules. (Note: file is intended to be committed; untracked state is pre-commit.)
+
+### 2026-06-19 — Created .env.example
+- Fulfilled next spec gate item (AGENTS §5, PRD §9). Created .env.example with only placeholder variable names matching the frozen stack (OLLAMA_HOST, SECOND_BRAIN_AIRGAP, optional data dir, commented cloud key placeholders, LiteLLM config path). Includes strong comments referencing AGENTS/PRD and warnings never to put real values.
+- .env remains gitignored (per .gitignore !.env.example exception). Directly supports local-first + explicit-cloud model.
+- Advances Spec Gate: 7 of 8 items complete (only demo/ corpus remains). No code yet.
+- Logged per pre-commit rules.
 
 ### 2026-06-19 — Created docs/adr/001-vector-store-and-models.md
 - Fulfilled spec gate requirement for ADR-001 (AGENTS §5, PRD §9/§16). Created proper ADR documenting frozen stack decision: LanceDB (vector), local nomic-embed-text (embeddings), Ollama (default LLM), LiteLLM (abstraction). Includes Context (privacy, DataZone, golden eval needs), Decision (exact choices + CLI typer preference note), Consequences, alternatives considered, and risks.
