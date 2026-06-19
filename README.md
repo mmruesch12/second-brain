@@ -26,6 +26,8 @@ This project serves both personal productivity and as a living, public demonstra
 **Current PRD:** [personal-agentic-second-brain-prd-v2.md](./personal-agentic-second-brain-prd-v2.md)  
 **Previous:** [personal-agentic-second-brain-prd.md](./personal-agentic-second-brain-prd.md) (v0.1, superseded)
 
+**Contributors & AI agents:** Read [AGENTS.md](./AGENTS.md) before making changes — mandatory privacy rules, PRD phase gates, and pre-commit checklist.
+
 ---
 
 ## MVP Scope (Key Highlights)
@@ -95,6 +97,9 @@ See the v0.2 PRD for technical architecture (LanceDB, LiteLLM, Ollama, etc.).
 |------|-------------|
 | `personal-agentic-second-brain-prd-v2.md` | Current product requirements document |
 | `personal-agentic-second-brain-prd.md` | Original PRD (v0.1, superseded) |
+| `AGENTS.md` | Rules and best practices for AI agents and contributors |
+| `CONTRIBUTING.md` | Short contributor guide (links to AGENTS.md) |
+| `SECURITY.md` | Vulnerability reporting policy |
 | `README.md` | Project overview |
 | `LICENSE` | MIT License |
 

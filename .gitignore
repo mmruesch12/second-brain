@@ -47,6 +47,14 @@ Thumbs.db
 *.swp
 *~
 
+# Personal exports (reflection triage)
+actions.md
+actions/
+
+# Local-only eval (real queries — never commit)
+eval/golden_queries.local.yaml
+eval/golden_queries.private.yaml
+
 # Temp and eval artifacts
 tmp/
 .cache/
