@@ -1,0 +1,229 @@
+# eval/golden_queries.yaml
+# Golden query set for Personal Agentic Second Brain (spec gate / Phase 0a)
+# Minimum 30 public-safe queries. All use fictional projects/people only.
+# Tags: factual | synthesis | temporal | cross-doc (per PRD §3)
+# source_hint: only "demo/" (synthetic corpus paths for future eval harness)
+# Designed to exercise north-star "sb weekly" workflow and problem-evidence failure modes:
+# weekly recap, pre-meeting prep, cross-doc theme synthesis, date filtering, structure (H2/H3, tables, code blocks), wikilinks, tags.
+
+queries:
+  # 1-8: Synthesis + weekly recap focus (north-star)
+  - id: "q01"
+    query: "What were the key decisions and open action items from last week's Project Falcon syncs?"
+    tags: ["synthesis", "temporal", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Tests temporal recency + cross-meeting synthesis; should surface H2/H3 decisions and action bullets."
+
+  - id: "q02"
+    query: "Summarize the current risks and blockers for Acme Q3 launch based on notes from the past 14 days."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Weekly-style synthesis; requires good date filtering and risk extraction across notes."
+
+  - id: "q03"
+    query: "Provide a concise 5-bullet recap of progress on Project Phoenix observability work last week, including any customer feedback mentioned."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Direct north-star simulation; needs cross-doc (feedback + experiment logs)."
+
+  - id: "q04"
+    query: "What open questions remain from the vendor evaluation discussions across recent notes?"
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Cross-doc open questions; problem-evidence example #6."
+
+  - id: "q05"
+    query: "What were the final constraints agreed for the Acme Q3 launch?"
+    tags: ["factual", "synthesis"]
+    source_hint: "demo/"
+    notes: "Direct from problem-evidence failure example #1; tests heading context and recent edits."
+
+  - id: "q06"
+    query: "Give a brief synthesis of the current state of the observability initiative, citing the most recent updates."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "problem-evidence #10; piecemeal updates across notes."
+
+  - id: "q07"
+    query: "What alternatives were considered for the auth library before choosing the current one?"
+    tags: ["factual", "synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "problem-evidence #4; code block + retro note; wikilink style."
+
+  - id: "q08"
+    query: "List the concrete examples of slow query performance logged in April for the reporting pipeline."
+    tags: ["factual", "temporal"]
+    source_hint: "demo/"
+    notes: "problem-evidence #8; inside code fences/tables; atomic block handling."
+
+  # 9-15: Pre-meeting / decision prep
+  - id: "q09"
+    query: "Did Jordan commit to owning the latency investigation for the reporting pipeline, and when?"
+    tags: ["factual", "temporal"]
+    source_hint: "demo/"
+    notes: "problem-evidence #3; sub-bullet action items + date context."
+
+  - id: "q10"
+    query: "Summarize all prior discussions and commitments around the Falcon site migration timeline before the next planning meeting."
+    tags: ["synthesis", "temporal", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Pre-meeting prep; wikilinks and chronological reversal."
+
+  - id: "q11"
+    query: "What did the remote team say about documentation debt during the last planning cycle?"
+    tags: ["factual", "cross-doc"]
+    source_hint: "demo/"
+    notes: "problem-evidence #9; zone separation test (work-adjacent)."
+
+  - id: "q12"
+    query: "What alternatives to the current vendor were evaluated for the auth service and why were they rejected?"
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Pre-decision prep across design spike + retro."
+
+  - id: "q13"
+    query: "Find the decision log entry that reversed the weekly demo plan for the internal tooling project."
+    tags: ["factual", "temporal"]
+    source_hint: "demo/"
+    notes: "problem-evidence #7; wikilink to older note."
+
+  - id: "q14"
+    query: "What were the main risks mentioned for the Falcon site migration in notes from last month?"
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "problem-evidence #2; tag + semantic + table."
+
+  - id: "q15"
+    query: "List all commitments made by the team for Project Phoenix in the past 10 days."
+    tags: ["factual", "temporal", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Action item extraction across multiple notes."
+
+  # 16-22: Cross-document theme synthesis + factual lookup
+  - id: "q16"
+    query: "Connect the latency issues reported in customer feedback with the observability experiments and any architecture decisions."
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Theme synthesis across feedback, logs, arch notes; north-star style."
+
+  - id: "q17"
+    query: "What tags or projects are associated with notes mentioning 'Project Phoenix' or 'observability'?"
+    tags: ["factual"]
+    source_hint: "demo/"
+    notes: "Metadata + tag consistency test."
+
+  - id: "q18"
+    query: "Summarize customer feedback themes related to slow performance or reliability from the last 30 days."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Cross theme; feedback + experiment logs."
+
+  - id: "q19"
+    query: "Who is currently responsible for the auth library decision follow-ups?"
+    tags: ["factual"]
+    source_hint: "demo/"
+    notes: "Simple ownership lookup requiring recent notes."
+
+  - id: "q20"
+    query: "What is the latest status on the Acme Q3 launch risks and any mitigation steps discussed?"
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Risk synthesis + mitigation; status updates."
+
+  - id: "q21"
+    query: "Find references to 'weekly demos' or 'demo cadence' and any changes to the plan."
+    tags: ["factual", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Wikilink reversal + status update."
+
+  - id: "q22"
+    query: "Extract all mentions of 'latency' across Project Falcon and reporting pipeline notes, with dates."
+    tags: ["factual", "cross-doc", "temporal"]
+    source_hint: "demo/"
+    notes: "Semantic + date + cross project."
+
+  # 23-30: More variety - temporal, factual, synthesis, edge
+  - id: "q23"
+    query: "What experiments were run for observability in April and what were the key results?"
+    tags: ["factual", "temporal"]
+    source_hint: "demo/"
+    notes: "Date range + results in tables/code."
+
+  - id: "q24"
+    query: "Summarize the vendor evaluation process and current recommendation for the auth library."
+    tags: ["synthesis"]
+    source_hint: "demo/"
+    notes: "End-to-end synthesis of evaluation theme."
+
+  - id: "q25"
+    query: "List all notes or sections that reference 'Jordan' in a decision-making or ownership context from May onward."
+    tags: ["factual", "temporal"]
+    source_hint: "demo/"
+    notes: "Name + role + temporal filter."
+
+  - id: "q26"
+    query: "What is the relationship between the documentation debt discussion and the internal tooling demo plan?"
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Connection via wikilink or theme."
+
+  - id: "q27"
+    query: "Provide a one-paragraph brief on the current state of the Falcon site migration, citing the most recent sources."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Brief output simulation; recent sources + citations."
+
+  - id: "q28"
+    query: "Which notes contain both 'Project Phoenix' and 'customer feedback' or 'latency'?"
+    tags: ["factual", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Intersection query; good for hybrid retrieval test."
+
+  - id: "q29"
+    query: "What constraints or requirements were captured for the reporting pipeline performance work?"
+    tags: ["factual", "synthesis"]
+    source_hint: "demo/"
+    notes: "Requirements extraction; code/tables."
+
+  - id: "q30"
+    query: "Summarize open questions and next steps from the most recent Acme planning notes."
+    tags: ["synthesis", "temporal"]
+    source_hint: "demo/"
+    notes: "Planning cycle recap; action items."
+
+  # 31-35: Additional challenging ones for coverage (cross-zone awareness via hint, structure, etc.)
+  - id: "q31"
+    query: "What was discussed about documentation debt in the context of the remote team and internal tools?"
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Combines remote team + debt + tooling."
+
+  - id: "q32"
+    query: "Find any tables or lists that compare auth library options and their tradeoffs."
+    tags: ["factual"]
+    source_hint: "demo/"
+    notes: "Table extraction; structure-aware chunking test."
+
+  - id: "q33"
+    query: "What status updates were made to older Project Falcon notes in the last two weeks?"
+    tags: ["temporal", "factual"]
+    source_hint: "demo/"
+    notes: "Recent edits to older notes; recency vs content."
+
+  - id: "q34"
+    query: "Connect the Q3 launch constraints with any customer or reliability feedback mentioned."
+    tags: ["synthesis", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Cross project theme synthesis."
+
+  - id: "q35"
+    query: "Provide key insights and recommended next actions for the observability and latency work based on the last month of notes."
+    tags: ["synthesis", "temporal", "cross-doc"]
+    source_hint: "demo/"
+    notes: "Full north-star weekly style: insights + cited next actions."
+
+# Notes for future harness:
+# - Minimum 30 before Phase 0a (currently 35).
+# - Queries are paraphrased and safe; no real note content.
+# - Expect golden set to be used for baseline_rag scoring against 5-dimension rubric (Grounding, Citation precision, Completeness, Concision, Actionability).
+# - Later: add eval/results/ outputs (gitignored), local overlay for real queries.

@@ -21,8 +21,8 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-19                                 |
 | Active Phase       | Spec Gate (pre-Phase 0a)                   |
-| Overall Progress   | Spec Gate in progress                      |
-| Last Significant Entry | Created .secondbrainignore + .env.example |
+| Overall Progress   | Spec Gate complete                         |
+| Last Significant Entry | Spec Gate 100% (demo + golden_queries) |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -30,12 +30,12 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 
 - [x] `docs/problem-evidence.md` written (top 3 tasks, workarounds, 10 manual queries) — 2026-06-19
 - [x] `docs/data-zones.md` — path → DataZone mapping table — 2026-06-19
-- [ ] `eval/golden_queries.yaml` (≥30 public-safe queries)
+- [x] `eval/golden_queries.yaml` (≥30 public-safe queries) — 2026-06-19
 - [x] `docs/adr/001-vector-store-and-models.md` — 2026-06-19
 - [x] `docs/adr/002-chunking-contract.md` — 2026-06-19
 - [x] `.secondbrainignore` documented (README or ADR) — 2026-06-19
 - [x] `.env.example` with placeholder keys (no real values) — 2026-06-19
-- [ ] `demo/` synthetic corpus exists (for public artifacts)
+- [x] `demo/` synthetic corpus exists (for public artifacts) — 2026-06-19
 - [x] `docs/progress.md` initialized (this file) — 2026-06-19
 
 ## Phase Status
@@ -128,6 +128,19 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Created demo/ synthetic corpus
+- Fulfilled final spec gate item (AGENTS §5, PRD §16). Created 9 small .md files under demo/notes/ (PUBLIC_DEMO zone per data-zones.md) exercising: frontmatter (tags/date), H1-H3 headings, wikilinks, fenced code blocks (with options/perf), tables (risks, measurements), lists, dates, cross-doc references.
+- Content directly supports all 35 golden queries (Acme Q3 constraints/risks, Project Falcon decisions/Jordan actions/migration, Project Phoenix feedback/commits/experiments, vendor auth alternatives, latency, remote docs debt, April perf numbers, wikilink reversals, piecemeal status) and problem-evidence failure modes.
+- Fictional only (Acme, Falcon, Phoenix, Jordan etc.). High-signal for future baseline_rag + eval harness. ~9 files, ~170 lines total.
+- Advances Spec Gate: 8/8 items complete. No code yet. All prior artifacts (ADRs, .secondbrainignore, .env.example, golden, evidence, zones) now fully supported by demo corpus.
+- Logged per pre-commit rules.
+
+### 2026-06-19 — Created eval/golden_queries.yaml
+- Fulfilled PRD §3 golden-query eval requirement and next spec gate checklist item. Created 35 public-safe queries (exceeding min 30) with required tags (factual | synthesis | temporal | cross-doc), source_hint limited to demo/ paths only, and coverage of north-star weekly synthesis plus problem-evidence failure modes (recap, prep, cross-doc themes, structure, dates).
+- Queries are challenging, generalized, and directly usable by the future golden eval harness + baseline_rag.
+- No real note content, no PII, no secrets. Artifact ready for Phase 0a.
+- Advances Spec Gate: 3 of 8 items complete (problem-evidence, data-zones, golden_queries).
 
 ### 2026-06-19 — Created .secondbrainignore
 - Fulfilled spec gate item for `.secondbrainignore` (AGENTS §5, PRD §6/§10). Created root-level gitignore-style file with excellent comments, references to PRD/data-zones/AGENTS, and categorized examples (secrets, work-confidential subdirs using fictional Acme/Falcon projects, personal exports, binaries, eval locals, temp files).
