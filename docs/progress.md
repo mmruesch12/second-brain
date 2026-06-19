@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Phase 0a — Markdown + Baseline             |
 | Overall Progress   | In Progress                                |
-| Last Significant Entry | Phase 0a: Markdown ingest pipeline (sb ingest + --status) |
+| Last Significant Entry | Phase 0a: baseline_rag retriever (immortal) |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -128,6 +128,14 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Phase 0a: baseline_rag retriever (immortal)
+- Implemented Phase 0a item 5 (strict order after ingest): src/second_brain/retriever.py with baseline_rag(query, limit, zone) — thin immortal wrapper over store.search (vector + data_zone metadata filter). Adds citation keys (chunk_id, heading). Documents as the baseline that must always exist (per PRD §9/12, AGENTS §5/6; future work must beat on golden eval).
+- tests/test_retriever.py: unit tests (basic, empty, zone passthrough, citation keys) using mocks.
+- py_compile OK; import/usage smoke via compile (runtime deps not present in shell per AGENTS §4).
+- Post: git status/diff + exact AGENTS §4 scans passed. New files under untracked (src/tests). No PII/secrets. Relative paths.
+- Advances Phase 0a. Immortal baseline_rag now exists (ties to LanceDB/store). Prepares for synthesizer + sb query CLI.
+- Logged per pre-commit. Next: minimal synthesizer + sb query CLI (brief profile).
 
 ### 2026-06-19 — Phase 0a: Markdown ingest pipeline (sb ingest + --status)
 - Implemented Phase 0a item 4 (next after embed/Lance/manifest): src/second_brain/ingest.py (find .md, load .secondbrainignore + should_ignore, resolve_zone with --zone/fm/path heuristic, _parse_frontmatter_zone, use parse_document + store.add_document, get_status wrapper).
