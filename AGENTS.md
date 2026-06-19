@@ -11,6 +11,7 @@ This file is the canonical guide for AI agents and human contributors working on
 | Document | Purpose |
 |----------|---------|
 | [personal-agentic-second-brain-prd-v2.md](./personal-agentic-second-brain-prd-v2.md) | **Source of truth** for scope, architecture, phase gates, and acceptance criteria |
+| [docs/progress.md](./docs/progress.md) | **Living build log** — record all commits that advance spec gates or PRD phases |
 | [README.md](./README.md) | Public project overview |
 | [personal-agentic-second-brain-prd.md](./personal-agentic-second-brain-prd.md) | Superseded v0.1 — historical reference only; do not implement from it |
 | [.gitignore](./.gitignore) | What must never enter version control |
@@ -169,12 +170,14 @@ Target: <2 min locally. Do not commit if tests fail unless the failure is docume
 
 - One logical change per commit
 - No drive-by refactors unrelated to the task
-- No new markdown unless: (a) the user asked, (b) PRD spec gate / phase requires it (ADRs, `docs/problem-evidence.md`, decision log), or (c) updating existing docs per §9
+- No new markdown unless: (a) the user asked, (b) PRD spec gate / phase requires it (ADRs, `docs/problem-evidence.md`, `docs/progress.md`, `docs/data-zones.md`, `docs/autonomous-loop-prompt.md`, decision log), or (c) updating existing docs per §9
+- If the commit completes or materially advances a spec gate item or phase deliverable (see `docs/progress.md`), you **must** append a dated entry to `docs/progress.md` summarizing the change, the PRD reference(s), and any acceptance results before staging.
 - Commit messages: complete sentences, explain *why*, not just *what*
 
 ### Step 6 — Final gate
 
-Ask: **Would I be comfortable if this commit appeared on the front page of Hacker News?**
+- If the change advances the PRD (gates or phases), confirm `docs/progress.md` has a fresh entry.
+- Ask: **Would I be comfortable if this commit appeared on the front page of Hacker News?**
 
 If no → fix before committing.
 
@@ -213,6 +216,8 @@ Do not start implementation until:
 - [ ] `.secondbrainignore` documented in README or ADR
 - [ ] `.env.example` with placeholder keys (no values)
 - [ ] `demo/` synthetic corpus exists
+
+**Progress tracking requirement:** Completion (or partial progress) against any item above, or any subsequent phase deliverable, **must** be recorded in `docs/progress.md` as part of the committing change. The pre-commit checklist enforces this.
 
 ---
 
@@ -287,10 +292,12 @@ Add tests with every feature. Golden eval results go to `eval/results/` — **gi
 
 ## 9. Documentation Rules
 
-- Do not create markdown files unless: (a) the user asked, (b) PRD spec gate / phase requires it (ADRs, `docs/problem-evidence.md`, decision log), or (c) updating existing docs
+- Do not create markdown files unless: (a) the user asked, (b) PRD spec gate / phase requires it (ADRs, `docs/problem-evidence.md`, `docs/data-zones.md`, `docs/progress.md`, decision log), or (c) updating existing docs
+- `docs/progress.md` is a **required living artifact**: every commit that advances a spec gate item or PRD phase deliverable **must** append an entry (see pre-commit checklist §4 and the file header). Checking and updating it is mandatory.
 - Public screenshots and README examples use `demo/` data only
 - ADRs go in `docs/adr/` with format: context, decision, consequences
 - Update README only when project status or entry points materially change
+- `docs/progress.md`, `docs/autonomous-loop-prompt.md`, and ADRs are the primary sanctioned documents for tracking and automating the build of the PRD (and beyond)
 
 ---
 
@@ -323,6 +330,7 @@ Add tests with every feature. Golden eval results go to `eval/results/` — **gi
 - Commit only when the user explicitly asks, or when completing a delegated task that included "implement and commit"
 - Doc-only changes: still run Step 2 secret scan; Steps 4–5 may be abbreviated
 - Code/eval/config changes: full checklist mandatory
+- **PRD progress commits:** Any commit touching spec gates, phases, golden queries, ADRs, or retrieval/eval work **must** include an update to `docs/progress.md`. The change is not complete without the log entry.
 
 ### External contributions (fork PRs)
 
