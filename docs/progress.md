@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Phase 0a — Markdown + Baseline             |
 | Overall Progress   | In Progress                                |
-| Last Significant Entry | Phase 0a: DocumentMetadata + metadata extraction |
+| Last Significant Entry | Phase 0a: local embeddings + LanceDB index + manifest |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -128,6 +128,16 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Phase 0a: local embeddings + LanceDB index + manifest
+- Implemented Phase 0a item 3 per strict order (after Chunker + metadata): added lancedb>=0.5.0 + ollama>=0.3.0 (pinned) to pyproject.toml.
+- src/second_brain/embeddings.py: embed_text() using Ollama nomic-embed-text, _is_loopback enforcement, SECOND_BRAIN_AIRGAP support, raises on non-local for embeddings (per PRD §9, ADR-001, AGENTS air-gap).
+- src/second_brain/store.py: get_data_dir (0700), SQLite manifest (docs table for status), LanceDB "chunks" table (vector + doc_id/chunk_index/content/source_path/heading_path/data_zone/title), add_document(meta, chunks) that embeds+inserts, get_manifest_status(), basic search() with optional data_zone filter. Uses DocumentMetadata + Chunk.
+- tests/test_store.py: pytest tests with monkeypatched deterministic embeds + temp dir isolation (add+manifest, search basic, zone filter, empty case). No real runtime deps required.
+- py_compile OK; mocked python3 -c smoke (add/manifest/search) passed.
+- Post: git status/diff + exact AGENTS §4 scans (content clean; .env.example untracked known/sanctioned only).
+- Advances Phase 0a (local embeddings + LanceDB + manifest). Prepares for ingest + baseline_rag. Immortal baseline path. No PII, no secrets, no real paths in source.
+- Logged per rules. Next: MD ingest pipeline (sb ingest basics).
 
 ### 2026-06-19 — Phase 0a: DocumentMetadata + metadata extraction
 - Implemented Document + chunk metadata extraction (next per Phase 0a order after Chunker): src/second_brain/models.py with DocumentMetadata Pydantic matching PRD §8 Metadata Schema v1 exactly (source_path, content_hash, doc_id, ingested_at, modified_at, title, tags[], wikilinks[], heading_path, doc_type, data_zone, ...). Pure-Python frontmatter parser, wikilinks extractor ([[ ]]), sha256 hash, title fallback (fm > H1 > basename), zone override, extract_document_metadata + parse_document(meta, chunks) tying to chunker.
