@@ -22,7 +22,7 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Date               | 2026-06-19                                 |
 | Active Phase       | Phase 0a — Markdown + Baseline             |
 | Overall Progress   | In Progress                                |
-| Last Significant Entry | Phase 0a start: scaffold + Chunker |
+| Last Significant Entry | Phase 0a: DocumentMetadata + metadata extraction |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -128,6 +128,14 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Phase 0a: DocumentMetadata + metadata extraction
+- Implemented Document + chunk metadata extraction (next per Phase 0a order after Chunker): src/second_brain/models.py with DocumentMetadata Pydantic matching PRD §8 Metadata Schema v1 exactly (source_path, content_hash, doc_id, ingested_at, modified_at, title, tags[], wikilinks[], heading_path, doc_type, data_zone, ...). Pure-Python frontmatter parser, wikilinks extractor ([[ ]]), sha256 hash, title fallback (fm > H1 > basename), zone override, extract_document_metadata + parse_document(meta, chunks) tying to chunker.
+- Added tests/test_metadata.py: model construction, full frontmatter+tags+date parse, wikilinks (unique/piped), hash determinism, title fallbacks, zone, integration parse_document exercising atomic chunks + metadata.
+- Syntax + logic smoke via py_compile + python3 -c (patched stubs for missing tiktoken dep); matches chunker style, relative paths only, high-signal for ingest manifest.
+- Post-change: git status/diff + exact AGENTS.md §4 secret scans passed (no issues; .env.example untracked match known/sanctioned).
+- Advances Phase 0a (item 2 of strict order). Immortal baseline_rag path continues. No PII/secrets/home paths. No new deps.
+- Logged per pre-commit. Next: LanceDB + local embeddings + manifest.
 
 ### 2026-06-19 — Phase 0a start: scaffold + Chunker
 - Spec Gate 100% complete (per progress). Started Phase 0a: created pyproject.toml (pinned: typer, pydantic, tiktoken, pytest) with src/ layout and 'sb' entry point. Implemented first item per order: Chunker (src/second_brain/chunker.py) exactly matching PRD §8 / ADR-002 contract (H1-H3 aware, 400-800 tokens, 80-token overlap, atomic code blocks). Added Pydantic Chunk model + basic unit tests (tests/test_chunker.py). Syntax verified; full pytest skipped (no deps in base shell per AGENTS §4 Step 4).
