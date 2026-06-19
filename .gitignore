@@ -1,0 +1,53 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Project data (local-first — never commit personal notes or indexes)
+data/
+.notes/
+inbox/
+*.db
+*.sqlite
+*.sqlite3
+.lancedb/
+chroma/
+
+# Logs and traces
+*.log
+logs/
+traces/
+feedback.jsonl
+query_trace.jsonl
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Temp and eval artifacts
+tmp/
+.cache/
+eval/results/

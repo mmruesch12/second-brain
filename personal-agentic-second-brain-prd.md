@@ -12,7 +12,7 @@
 
 Build a governed, personal knowledge operating system that ingests my scattered notes, research, ideas, and documents, then lets me query, synthesize, and act on that information through a multi-agent system with strong traceability, critic loops, and human oversight.
 
-The goal is to reduce cognitive load and context-switching friction in a life that already has high demands (work leadership, ADHD management, family, home projects, creative work). This should feel like an extension of my own thinking rather than another tool I have to manage.
+The goal is to reduce cognitive load and context-switching friction in a life that already has high demands (work leadership, family, home projects, creative work). This should feel like an extension of my own thinking rather than another tool I have to manage.
 
 ---
 
@@ -35,7 +35,7 @@ The goal is to reduce cognitive load and context-switching friction in a life th
 ## 3. Target Users
 
 - **Primary**: Matt Ruesch (single user for MVP).
-- **Future consideration**: Light multi-user or shared family knowledge (e.g., with Marissa), but explicitly out of scope for v1.
+- **Future consideration**: Light multi-user or shared family knowledge, but explicitly out of scope for v1.
 
 ---
 
@@ -86,7 +86,7 @@ Agent surfaces:
 - Open questions or unresolved items
 - Potential tasks or action items
 - Interesting connections across notes
-- ADHD/productivity-relevant insights (optional, user-controlled)
+- Productivity-relevant insights (optional, user-controlled)
 
 ### 4. Feedback & Improvement Loop
 - Rate answer quality or provide corrections.
@@ -111,7 +111,7 @@ Agent surfaces:
 - **Governance first**: Critic agent + human checkpoints on important outputs.
 - **Traceability always**: Every answer must clearly show its sources.
 - **Pragmatic determinism**: Use structured outputs (Pydantic) and explicit routing where it reduces nondeterminism.
-- **ADHD-friendly defaults**: Favor concise, actionable outputs with clear next steps. Avoid dumping too much information.
+- **Low-friction defaults**: Favor concise, actionable outputs with clear next steps. Avoid dumping too much information.
 - **Local-first & private**: Data stays on my machine unless I explicitly route to a cloud model.
 
 ---

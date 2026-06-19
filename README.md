@@ -4,13 +4,13 @@
 
 Build a local-first system that ingests scattered notes, research, ideas, and documents, then lets you query, synthesize, and act on that information through a multi-agent system with strong traceability, critic loops, and human oversight.
 
-The goal is to reduce cognitive load and context-switching friction — especially valuable for high-demand lives involving work leadership, ADHD management, family, home projects, and creative work. This should feel like an extension of your own thinking.
+The goal is to reduce cognitive load and context-switching friction — especially valuable for high-demand lives involving work leadership, family, home projects, and creative work. This should feel like an extension of your own thinking.
 
 ---
 
 ## Vision
 
-> Build a governed, personal knowledge operating system that ingests my scattered notes, research, ideas, and documents, then lets me query, synthesize, and act on that information through a multi-agent system with strong traceability, critic loops, and human oversight.
+> Build a governed, personal knowledge operating system that ingests scattered notes, research, ideas, and documents, then lets you query, synthesize, and act on that information through a multi-agent system with strong traceability, critic loops, and human oversight.
 
 This project serves both personal productivity and as a living, public demonstration of production-grade agentic patterns.
 
@@ -18,61 +18,59 @@ This project serves both personal productivity and as a living, public demonstra
 
 ## Project Status
 
-- **Version**: 0.1 (MVP-focused)
-- **Status**: PRD complete — implementation starting
+- **Version**: 0.2 (consensus-hardened MVP)
+- **Status**: Planning — PRD v0.2 complete; implementation not started
 - **Owner**: Matt Ruesch
 - **Date**: June 19, 2026
 
-See the full [personal-agentic-second-brain-prd.md](./personal-agentic-second-brain-prd.md) for detailed requirements, architecture, success criteria, and phased timeline.
+**Current PRD:** [personal-agentic-second-brain-prd-v2.md](./personal-agentic-second-brain-prd-v2.md)  
+**Previous:** [personal-agentic-second-brain-prd.md](./personal-agentic-second-brain-prd.md) (v0.1, superseded)
 
 ---
 
 ## MVP Scope (Key Highlights)
 
 **In Scope for v1**
-- Local-first ingestion of Markdown notes and PDFs
-- Hybrid retrieval (vector similarity + metadata/graph)
-- Multi-agent query orchestration with **LangGraph**:
-  - Query Planner / Router
-  - Retriever agent(s)
-  - Synthesizer
-  - Critic / Verifier
-- Human-in-the-loop checkpoints
+- Local-first ingestion of Markdown and text-native PDFs
+- Hybrid retrieval (vector similarity + metadata + wikilink structure)
+- CLI-first interface (`sb` command)
+- Retrieval-first pipeline: baseline RAG → optional citation verifier → LangGraph only if earned
 - Structured, cited responses with source traceability
-- Basic reflection / extraction agent
-- CLI primary + optional lightweight Streamlit UI
-- Basic observability and feedback capture
+- Bounded reflection and starter rituals (`sb morning`, `sb weekly`, etc.)
+- Local observability, egress ledger, and data-zone enforcement
 
 **Explicitly Out of Scope (MVP)**
 - Multi-user / sharing
-- Voice, real-time collab, long-term memory across sessions
+- Voice, real-time collab, long-term conversational memory
+- Cloud tracing on real personal data
+- Polished web UI (Streamlit deferred)
 - Complex external automations
-- Heavy local model hosting
 
-See PRD for complete scoping and design principles.
+See the v0.2 PRD for complete scoping, phase gates, and design principles.
 
 ---
 
 ## Key Design Principles
 
-- **Governance first**: Critic agent + human checkpoints
+- **Governance first**: Optional verifier + human feedback
 - **Traceability always**: Every answer shows its sources
-- **ADHD-friendly defaults**: Concise, actionable outputs
-- **Local-first & private**: Data stays on-device by default
+- **Low-friction defaults**: Concise, actionable outputs
+- **Local-first & private**: Air-gap by default; cloud requires explicit opt-in
 - **Pragmatic determinism**: Structured outputs and explicit routing
 
 ---
 
 ## Phasing & Timeline
 
-| Phase | Focus                          | Target          |
-|-------|--------------------------------|-----------------|
-| 0     | Foundation (ingestion + baseline RAG) | 1 weekend      |
-| 1     | Agentic Core (LangGraph + CLI) | 1–2 weekends   |
-| 2     | Usability & Reflection         | 1 weekend      |
-| 3     | Real-World Iteration           | Ongoing (3–4 weeks use) |
+| Phase | Focus | Target |
+|-------|-------|--------|
+| 0a | Markdown ingest + baseline RAG + eval harness | 2–3 days |
+| 0b | PDF ingest + quick capture | 1–2 days |
+| 1 | Retrieval hardening (no new agents) | 2–3 days |
+| 2 | Citation verifier + starter rituals | 1–2 days |
+| 3 | Reflection CLI + real-world iteration | 1 weekend + 3–4 weeks |
 
-Target: Useful, personally valuable MVP within 3–5 focused sessions.
+Target: Useful, personally valuable MVP in 6–10 focused days (Phases 0–2), then iterate in daily use.
 
 ---
 
@@ -81,20 +79,24 @@ Target: Useful, personally valuable MVP within 3–5 focused sessions.
 Once implementation begins:
 
 ```bash
-# Example future usage
-personal-brain ingest ./notes
-personal-brain query "What were my key insights on X last month?"
-personal-brain reflect --recent
+sb capture "quick thought"
+sb ingest ./notes
+sb query "What were my key insights on X last month?"
+sb weekly
 ```
 
-See PRD for initial technical architecture (LangGraph, LiteLLM, Chroma/LanceDB, etc.).
+See the v0.2 PRD for technical architecture (LanceDB, LiteLLM, Ollama, etc.).
 
 ---
 
 ## Repository Contents
 
-- `personal-agentic-second-brain-prd.md` — Full product requirements document
-- `README.md` — This file (project overview)
+| File | Description |
+|------|-------------|
+| `personal-agentic-second-brain-prd-v2.md` | Current product requirements document |
+| `personal-agentic-second-brain-prd.md` | Original PRD (v0.1, superseded) |
+| `README.md` | Project overview |
+| `LICENSE` | MIT License |
 
 ---
 
@@ -102,10 +104,9 @@ See PRD for initial technical architecture (LangGraph, LiteLLM, Chroma/LanceDB, 
 
 The MVP will be considered successful when:
 - I actively prefer using it over current ad-hoc methods for at least one important recurring need.
+- Golden-query eval meets the rubric threshold defined in the PRD.
 - I can clearly articulate the architecture, key design decisions, tradeoffs, and real usage learnings.
 
 ---
 
-*This project prioritizes building something I will actually use and can speak about with authenticity over feature completeness.*
-
-**End of initial project scaffold**
+*This project prioritizes building something genuinely useful over feature completeness or agent count.*
