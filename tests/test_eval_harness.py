@@ -3,7 +3,8 @@
 Tests loading (35+ queries), scoring range, mock run, result shape.
 """
 
-from second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric, verify_phase0a_acceptance
+from second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric, verify_phase0a_acceptance, verify_phase2_acceptance
+from unittest.mock import patch
 
 
 def test_loads_golden_queries():
@@ -44,10 +45,26 @@ def test_run_harness_real_uplift_exercises_phase1():
     assert isinstance(summary["uplift_pct"], (int, float))
     # prove since/tags injected for temporal queries (filter/router effect exercised)
     temporal_results = [r for r in summary.get("results", []) if "temporal" in r.get("tags", [])]
-    assert any( (r.get("since") or r.get("tags")) for r in summary.get("results", []) )
+    assert any(r.get("since") for r in summary.get("results", []))
     assert len(temporal_results) >= 1  # at least some temporal golden affected by injected filters
     # some temporal show non-regress vs their baseline (or higher due to better select)
     assert any( r.get("total", 0) >= r.get("total_baseline", 0) for r in temporal_results )
     # realistic filename check via note in verify
     v = verify_phase0a_acceptance()
     assert "2026-06" in str(v.get("note", "")) or "acme" in str(v).lower()  # realistic in note
+
+
+def test_run_harness_phase2_with_verifier_and_rituals(tmp_path):
+    """Phase2: with_verifier exercises verifier (sets verdict, may uplift grounding), verify_phase2_acceptance for rituals+grounding+weekly smoke."""
+    with patch("second_brain.verifier.litellm.completion", side_effect=Exception("dummy for noise")):
+        summary = run_golden_eval(use_real_retrieval=True, with_verifier=True, out_dir=str(tmp_path))
+    assert summary["num_queries"] >= 30
+    assert any("verifier_verdict" in r for r in summary.get("results", []))
+    v2 = verify_phase2_acceptance(out_dir=str(tmp_path))
+    assert v2.get("acceptance_met") is True
+    assert "weekly_ritual_smoke" in v2
+    assert len(v2.get("weekly_ritual_smoke", [])) >= 1
+    # elapsed smoke <5min (always for demo)
+    assert v2.get("elapsed_s", 999) < 300
+    # some ritual has verdict set
+    assert any(r.get("verdict") for r in v2.get("weekly_ritual_smoke", []))

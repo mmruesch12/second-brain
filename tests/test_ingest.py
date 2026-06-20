@@ -22,7 +22,6 @@ from second_brain.ingest import (
     ingest,
     get_status,
 )
-from unittest.mock import patch
 
 
 @pytest.fixture(autouse=True)
@@ -315,7 +314,6 @@ def test_capture_cmd_cli_runner(tmp_path, monkeypatch):
 
 def test_query_cmd_cli_with_since_and_profile(monkeypatch):
     """Phase 1 CLI: --since, --profile passed down; exercises full router+retrieve path (end-to-end-ish)."""
-    from typer.testing import CliRunner
     runner = CliRunner()
     called = {}
 
@@ -368,3 +366,44 @@ def test_pdf_zone_and_inbox_zone(tmp_path, monkeypatch):
     with patch("second_brain.ingest.Path.cwd", return_value=tmp_path):
         real_ingest(str(ib))
         assert any("PERSONAL" in str(c) for c in calls)
+
+
+def test_phase2_cli_quick_rituals_query_verify_smoke(monkeypatch):
+    """Phase2 CLI entrypoints (quick, morning, prep, weekly, query --verify) smoke via runner + patches on synth (no LLM). Matches prior CLI test style."""
+    runner = CliRunner()
+    called = {}
+
+    def fake_synth(q, **kw):
+        from second_brain.models import SynthesisResponse
+        called["q"] = q
+        called["verify"] = kw.get("verify")
+        called["stream"] = kw.get("stream")
+        called["since"] = kw.get("since")
+        v = "SUPPORTED" if kw.get("verify") else None
+        md = f"Phase2 brief: {q[:25]}"
+        if kw.get("stream"):
+            import sys
+            sys.stdout.write(md + "\n")
+            sys.stdout.flush()
+        return SynthesisResponse(answer_markdown=md, profile=kw.get("profile", "brief"), verifier_verdict=v, model_used="mock")
+
+    with patch("second_brain.synthesizer.synthesize", fake_synth):
+        # quick
+        res = runner.invoke(app, ["quick", "Acme prep"])
+        assert res.exit_code == 0
+        assert "Phase2 brief" in res.output
+        # morning
+        res = runner.invoke(app, ["morning"])
+        assert res.exit_code == 0
+        # prep
+        res = runner.invoke(app, ["prep", "Falcon migration"])
+        assert res.exit_code == 0
+        assert "Falcon" in called.get("q", "")
+        # weekly
+        res = runner.invoke(app, ["weekly", "--json"])
+        assert res.exit_code == 0
+        # query + --verify
+        res = runner.invoke(app, ["query", "test q", "--verify"])
+        assert res.exit_code == 0
+        assert called.get("verify") is True
+        assert called.get("stream") is True  # default for non-json human path

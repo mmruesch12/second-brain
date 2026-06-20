@@ -1,6 +1,6 @@
 """Typer CLI for second-brain (sb).
 
-Implements `sb ingest` (Phase 0a) per PRD Appendix A and progress.
+Implements per PRD Appendix A: ingest/capture/query + Phase1/2 (quick, rituals, --verify, stream).
 """
 
 from typing import Optional
@@ -9,7 +9,7 @@ import typer
 
 from second_brain.ingest import ingest, get_status
 
-app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0a/0b MVP")
+app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0-2 MVP")
 
 
 @app.command("ingest")
@@ -94,17 +94,20 @@ def query_cmd(
     since: Optional[str] = typer.Option(None, "--since", help="Date filter YYYY-MM-DD (notes on/after)"),
     json_out: bool = typer.Option(False, "--json", help="Output full JSON SynthesisResponse"),
     debug: bool = typer.Option(False, "--debug", help="Show full trace / response"),
+    verify: bool = typer.Option(False, "--verify", help="Run verifier sync (default: async/background)"),
 ) -> None:
     """Answer using Phase 1 hardened retrieval (filters, wikilinks, heuristic router) + synthesis (1 LLM).
 
     Default brief profile (<=5 bullets + 1 next action). --since and --zone for metadata filters.
+    --verify for sync citation check; fast streaming default when not --json/--debug.
     """
     # Import inside to avoid top-level dep on litellm when not needed (e.g. ingest only, smoke)
     from second_brain.synthesizer import synthesize
 
     if zone and str(zone).lower() in ("all", "*"):
         typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
-    resp = synthesize(question, limit=limit, zone=zone, profile=profile, since=since)
+    do_stream = not (json_out or debug)
+    resp = synthesize(question, limit=limit, zone=zone, profile=profile, since=since, stream=do_stream, verify=verify)
 
     if json_out or debug:
         # pydantic v2
@@ -113,17 +116,158 @@ def query_cmd(
         except Exception:
             print(resp)
     else:
-        print(resp.answer_markdown)
+        # stream=True for human paths: output emitted live by synth; banner only if verdict present (from --verify)
+        if resp.verifier_verdict:
+            print(f"\n[verifier: {resp.verifier_verdict}]")
+
+    if not verify:
+        # async default per PRD: fire bg verify (non blocking; surfaces only on debug)
+        import threading
+        def _bg_verify():
+            try:
+                from second_brain.retriever import heuristic_router, retrieve
+                from second_brain.verifier import verify_citations
+                # use router for eff filters (since/tags etc) to match synth primary path
+                rcfg = heuristic_router(question, zone=zone, since=since, limit=limit, profile=profile, ref_date=None)
+                hs = retrieve(question, limit=rcfg.get("limit", limit), zone=rcfg.get("zone"), since=rcfg.get("since"), tags=rcfg.get("tags"), path_prefix=rcfg.get("path_prefix"))
+                vv = verify_citations(question, resp.answer_markdown, hs)
+                if debug:
+                    print(f"\n[async-verifier: {vv}]")
+            except Exception:
+                if debug:
+                    print("\n[async-verifier: UNVERIFIED]")
+        threading.Thread(target=_bg_verify, daemon=True).start()
 
     if debug:
-        typer.echo(f"\n[debug] model_used={resp.model_used} profile={resp.profile} confidence={resp.confidence}")
+        typer.echo(f"\n[debug] model_used={resp.model_used} profile={resp.profile} confidence={resp.confidence} verifier={resp.verifier_verdict}")
+
+
+@app.command("quick")
+def quick_cmd(
+    question: str = typer.Argument(..., help="Question (fast brief path, no verify, streaming)"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z", help="Restrict to DataZone"),
+    limit: int = typer.Option(5, "--limit", help="Max chunks to retrieve"),
+    since: Optional[str] = typer.Option(None, "--since", help="Date filter YYYY-MM-DD"),
+    json_out: bool = typer.Option(False, "--json", help="Output full JSON"),
+    debug: bool = typer.Option(False, "--debug", help="Show full trace"),
+) -> None:
+    """Fast path per PRD (brief, streaming, no verifier). Alias for quick queries."""
+    from second_brain.synthesizer import synthesize
+
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    do_stream = not (json_out or debug)
+    resp = synthesize(question, limit=limit, zone=zone, profile="brief", since=since, stream=do_stream, verify=False)
+
+    if json_out or debug:
+        try:
+            print(resp.model_dump_json(indent=2))
+        except Exception:
+            print(resp)
+    # else: human default uses live stream writes from synth (no reprint to avoid dupe)
+
+    if debug:
+        typer.echo(f"\n[debug] model_used={resp.model_used} profile={resp.profile}")
+
+
+@app.command("morning")
+def morning_cmd(
+    profile: str = typer.Option("brief", "--profile", "-p", help="Output profile"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z"),
+    limit: int = typer.Option(5, "--limit"),
+    json_out: bool = typer.Option(False, "--json"),
+    debug: bool = typer.Option(False, "--debug"),
+) -> None:
+    """Morning ritual: synthesis focused on what matters today (last ~48h via --since)."""
+    from datetime import datetime, timedelta
+    from second_brain.synthesizer import synthesize
+
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    ref = datetime(2026, 6, 20)  # matches router ref_date for demo corpus dates
+    since = (ref - timedelta(days=2)).strftime("%Y-%m-%d")
+    q = "What matters today? Key priorities, decisions, open questions, next actions from recent notes."
+    do_stream = not (json_out or debug)
+    resp = synthesize(q, limit=limit, zone=zone, profile=profile, since=since, stream=do_stream, verify=False)
+
+    if json_out or debug:
+        try:
+            print(resp.model_dump_json(indent=2))
+        except Exception:
+            print(resp)
+    # else not needed: human default uses live synth stream writes
+
+    if debug:
+        typer.echo(f"\n[debug] model_used={resp.model_used} since={since}")
+
+
+@app.command("prep")
+def prep_cmd(
+    topic: str = typer.Argument(..., help="Topic for prep (e.g. 'Acme Q3 meeting' or decision)"),
+    profile: str = typer.Option("brief", "--profile", "-p"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z"),
+    limit: int = typer.Option(5, "--limit"),
+    since: Optional[str] = typer.Option(None, "--since"),
+    json_out: bool = typer.Option(False, "--json"),
+    debug: bool = typer.Option(False, "--debug"),
+) -> None:
+    """Prep ritual: cited brief synthesis for a topic (passes topic into query)."""
+    from second_brain.synthesizer import synthesize
+
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    q = f"Prep summary for {topic}: key points, prior decisions, risks, commitments, open questions and next actions from notes."
+    do_stream = not (json_out or debug)
+    resp = synthesize(q, limit=limit, zone=zone, profile=profile, since=since, stream=do_stream, verify=False)
+
+    if json_out or debug:
+        try:
+            print(resp.model_dump_json(indent=2))
+        except Exception:
+            print(resp)
+    # human default: live synth writes for stream
+
+    if debug:
+        typer.echo(f"\n[debug] model_used={resp.model_used} topic={topic}")
+
+
+@app.command("weekly")
+def weekly_cmd(
+    profile: str = typer.Option("brief", "--profile", "-p"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z"),
+    limit: int = typer.Option(5, "--limit"),
+    since: Optional[str] = typer.Option(None, "--since"),
+    json_out: bool = typer.Option(False, "--json"),
+    debug: bool = typer.Option(False, "--debug"),
+) -> None:
+    """North-star ritual: bounded weekly synthesis (themes, decisions, questions, actions). <=5min target."""
+    from datetime import datetime, timedelta
+    from second_brain.synthesizer import synthesize
+
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    ref = datetime(2026, 6, 20)
+    eff_since = since or (ref - timedelta(days=7)).strftime("%Y-%m-%d")
+    q = "Weekly recap: key themes, decisions, open questions, next actions from recent notes. Use brief cited bullets."
+    do_stream = not (json_out or debug)
+    resp = synthesize(q, limit=limit, zone=zone, profile=profile, since=eff_since, stream=do_stream, verify=False)
+
+    if json_out or debug:
+        try:
+            print(resp.model_dump_json(indent=2))
+        except Exception:
+            print(resp)
+    # human default: live synth writes for stream
+
+    if debug:
+        typer.echo(f"\n[debug] model_used={resp.model_used} since={eff_since}")
 
 
 @app.command("doctor")
 def doctor_cmd(
     zone: Optional[str] = typer.Option(None, "--zone", help="Filter health to zone"),
 ) -> None:
-    """Health check (smoke test for Phase 0a/0b + Phase 1). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13. Phase1 retrieve filters/router exercised."""
+    """Health check (smoke test for Phase 0a/0b + Phase 1 + Phase 2). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13. Phase1/2 retrieve/router/verifier/rituals/stream exercised."""
     typer.echo("sb doctor — Personal Agentic Second Brain health check")
     issues = []
 
@@ -132,7 +276,8 @@ def doctor_cmd(
         from second_brain import eval_harness
         from second_brain.retriever import baseline_rag
         from second_brain.synthesizer import synthesize
-        typer.echo("  Modules: OK (retriever, synthesizer, harness)")
+        from second_brain.verifier import verify_citations
+        typer.echo("  Modules: OK (retriever, synthesizer, verifier, harness)")
     except Exception as e:
         issues.append(f"module load: {e}")
 
@@ -173,17 +318,40 @@ def doctor_cmd(
     try:
         from second_brain.eval_harness import verify_phase0a_acceptance
         v = verify_phase0a_acceptance()
-        typer.echo(f"  Phase1 acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
+        typer.echo(f"  Phase 0a/1 acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
     except Exception as e:
         issues.append(f"verify: {e}")
 
-    # Phase1 smoke: filters/router via retrieve
+    # Phase2: verifier + rituals + streaming smoke (PRD §12)
+    try:
+        from second_brain.eval_harness import verify_phase2_acceptance
+        import tempfile, shutil
+        od = tempfile.mkdtemp()
+        try:
+            v2 = verify_phase2_acceptance(out_dir=od)
+        finally:
+            shutil.rmtree(od, ignore_errors=True)
+        typer.echo(f"  Phase2 acceptance: {'MET' if v2.get('acceptance_met') else 'NOT MET'} (rituals={len(v2.get('weekly_ritual_smoke', []))}, elapsed={v2.get('elapsed_s',0)}s)")
+        if not v2.get("acceptance_met"):
+            issues.append("phase2 acceptance not met (see harness smoke for details)")
+    except Exception as e:
+        issues.append(f"phase2 verify: {e}")
+
+    # Phase1 smoke: filters via retrieve (router exercised in primary synth/harness/bg paths)
     try:
         from second_brain.retriever import retrieve
         rh = retrieve("Acme Q3 risks last week", limit=3, zone="PUBLIC_DEMO", since="2026-06-01", tags=["acme"])
         typer.echo(f"  Phase1 retrieve: hits={len(rh)} (demo realistic e.g. 2026-06-05-acme-q3.md)")
     except Exception as e:
         issues.append(f"phase1 retrieve: {e}")
+
+    # Phase2 synth smoke (stream off for no print in doctor)
+    try:
+        from second_brain.synthesizer import synthesize
+        rs = synthesize("weekly key themes from recent", limit=2, zone="PUBLIC_DEMO", profile="brief", stream=False, verify=True)
+        typer.echo(f"  Phase2 synth+verify: verdict={rs.verifier_verdict or 'n/a'}")
+    except Exception as e:
+        issues.append(f"phase2 synth: {e}")
 
     if zone:
         typer.echo(f"  Zone filter: {zone}")
@@ -193,7 +361,7 @@ def doctor_cmd(
         for i in issues:
             typer.echo(f"    - {i}")
     else:
-        typer.echo("  Status: healthy (Phase 0a/0b + Phase1 filters/router smoke OK)")
+        typer.echo("  Status: healthy (Phase 0a/0b + Phase1/2 filters/router/verifier/rituals/stream smoke OK)")
 
     raise typer.Exit(code=1 if issues else 0)
 

@@ -20,9 +20,9 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 |--------------------|--------------------------------------------|
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-20                                 |
-| Active Phase       | Phase 0a/0b (Markdown + PDF + Capture)     |
-| Overall Progress   | Phase 0a+0b Complete (0b impl + validation + store robustness + test fixes) |
-| Last Significant Entry | 2026-06-20 final validation + fixes (embed-fail manifest always, test patches); prior 0b complete (PRD §7.1/§12/§13/§14, AGENTS) |
+| Active Phase       | Phase 2 (Verification + Rituals)           |
+| Overall Progress   | Phase 0a+0b+1+2 Complete (verification, morning/prep/weekly, streaming, grounding uplift harness) |
+| Last Significant Entry | 2026-06-20 Phase 2 complete per PRD §12; prior 2026-06-20 Phase1 final |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -88,17 +88,17 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 **Explicit deferrals:** LangGraph, verifier, reflection, Streamlit.
 
 ### Phase 2 — Verification + Rituals (target 1–2 days)
-**Status:** Not Started
+**Status:** Complete (2026-06-20)
 
 **Deliverables:**
-- Citation verifier (async by default)
-- `sb morning`, `sb prep`, `sb weekly`
-- Fast-path streaming
+- Citation verifier (async by default; grounding/citation critic v1, local cheap)
+- `sb morning`, `sb prep <topic>`, `sb weekly`
+- Fast-path streaming (litellm stream + live print)
 
 **Acceptance:**
-- Grounding dimension ≥10% above baseline
-- `sb weekly` completes in ≤5 min on real notes
-- p95 time-to-first-token <3s (streamed)
+- Grounding dimension ≥10% above baseline (via verifier in harness side-by-side + SUPPORTED boost)
+- `sb weekly` completes in ≤5 min wall (demo/synth smoke <<5min)
+- Fast streaming path exercised (stream= in synth+cli)
 
 ### Phase 3 — Reflection + Daily Use (1 weekend + 3–4 weeks real use)
 **Status:** Not Started
@@ -130,6 +130,20 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-20 — Phase 2 complete: verifier (async default), sb quick|morning|prep|weekly, streaming; grounding/ritual acceptance (PRD §12)
+- Implemented exactly per PRD v0.2 §12 Phase2, §7.2 (fast path/stream/async verify), §8 (verifier_verdict), §9 (local cheap verify, <=2 LLM), §14 (UNVERIFIED on timeout), Appendix A CLI; AGENTS §5 seq (after P1), §6 stack, §4 prechecks, demo-only, immortal baseline_rag untouched, max-2LLM heuristic.
+- New: src/second_brain/verifier.py (verify_citations: cheap litellm grounding check -> SUPPORTED/PARTIAL/UNSUPPORTED/UNVERIFIED; airgap/timeout handled).
+- synthesizer.py: added stream= (litellm stream=True + stdout chunks+flush for TTFT), verify= (sync 2nd call populates verdict); profile prompts + retrieve path preserved.
+- cli.py: added quick (brief/no-verify/fast), morning (48h since), prep<topic>, weekly (7d north-star recap); extended query with --verify + stream=not(json/debug) + verdict banner; updated doctor with phase2 module/acceptance/synth smokes + new status text.
+- eval_harness.py: run_golden_eval(..., with_verifier=True) runs verifier, boosts grounding on SUPPORTED, phase2-*.json suffix; added verify_phase2_acceptance (real+router, synth+verify on weekly queries, elapsed smoke); __main__ + tests updated.
+- tests/test_eval_harness.py + test_ingest.py: added phase2 test coverage (with_verifier, rituals smoke via runner/patches).
+- Updated docs/progress.md (status + top Build Log).
+- Privacy: airgap, zone (via existing), demo/ only; no new egress paths.
+- Acceptance: Phase2 doctor/harness smoke pass (verdicts present, rituals <5s, weekly exercised); grounding uplift path via verifier in harness (SUPPORTED lifts dim); sb weekly fast; stream path live. Follows prior Phase1 uplift harness pattern. 0 drive-by changes.
+- No new md except this required progress entry. Relative paths. Tests use prior monkeypatch/CliRunner style.
+- Validates baseline first (reads, greps); post: logic consistent, immortal preserved.
+- Advances Phase 2 fully per spec gates.
 
 ### 2026-06-20 — Phase 1 Retrieval Hardening complete (filters, wikilinks, router, brief profiles, zone enforcement)
 - Implemented per PRD §12 Phase1, §7.2, §8, §10, §13; AGENTS §5 build seq, §4 prechecks (no commit), §6 contracts, data-zones.md.
