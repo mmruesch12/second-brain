@@ -19,10 +19,10 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Field              | Value                                      |
 |--------------------|--------------------------------------------|
 | PRD Version        | v0.2                                       |
-| Date               | 2026-06-19                                 |
-| Active Phase       | Phase 0a — Markdown + Baseline             |
-| Overall Progress   | Phase 0a Complete (with post-implementation review fixes) |
-| Last Significant Entry | Post-review fixes: packaging, airgap, zone filter, pyyaml, 10-demo, error strings, harness fidelity (PRD §3/8/9/10/12/14, AGENTS §3/4/6) |
+| Date               | 2026-06-20                                 |
+| Active Phase       | Phase 0a/0b (Markdown + PDF + Capture)     |
+| Overall Progress   | Phase 0a+0b Complete (0b impl + validation + store robustness + test fixes) |
+| Last Significant Entry | 2026-06-20 final validation + fixes (embed-fail manifest always, test patches); prior 0b complete (PRD §7.1/§12/§13/§14, AGENTS) |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -57,7 +57,7 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 - `sb ingest --status` shows manifest
 
 ### Phase 0b — PDF + Capture (target 1–2 days)
-**Status:** Not Started
+**Status:** Complete (implementation + validation: 20 demo PDFs + capture)
 
 **Deliverables:**
 - T0/T1 PDF ingest (pymupdf/pdfplumber)
@@ -68,6 +68,8 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 **Acceptance:**
 - ≥80% of 20-file PDF sample `ok` or `partial`
 - `sb capture` → queryable in <60s
+
+**Note:** All per PRD §12, §7.1, §14; AGENTS.md. See Build Log.
 
 ### Phase 1 — Retrieval Hardening (target 2–3 days)
 **Status:** Not Started
@@ -128,6 +130,28 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-20 — Final validation + fixes for Phase 0b (store robustness, test reliability) before commit/push
+- Full AGENTS pre-commit checklist: git status/diff, rg secret scan (clean), untracked hygiene (only demo/pdfs), .gitignore coverage (inbox/ etc covered), py_compile OK, pytest 42/42 pass.
+- Acceptance re-validated: 20/20 demo PDFs direct parse -> q=ok (100% >=80% threshold); ingest("demo/pdfs") patched-embed: added=20 failed=0, manifest has 20 pdf rows with doc_type/q, baseline_rag returns .pdf chunks; capture flow writes ts .md + auto-ingest + manifest in <1s.
+- `sb doctor`, `sb ingest --status`, `sb capture` (via equiv) exercised; no real user data; SECOND_BRAIN_DATA_DIR isolation used.
+- Found/fixed latent issue: store.add_document wrote manifest AFTER vector-embed block, so embed fail on good parse (q=ok chunks>0) skipped manifest row (broke "always record" + PRD §14 visibility for status). Moved INSERT before if-chunks; verified repro + post-fix row always present.
+- Hardened tests/test_store.py patches (monkeypatch both emb_mod and "second_brain.store.embed_text" to cover from-import binding); now all store tests reliable offline.
+- Phase 0b complete & validated (PRD §7.1/§12/§13/§14); no new scope, demo-only, airgap/privacy preserved.
+- Progress + README already reflected 0b; ready for one commit of the Phase 0b delta + these fixes. 
+
+### 2026-06-19 — Phase 0b review+fix round: addressed remaining nits (doctor count filter, title clean stem, store test_empty update, capture test embed patch, rel robustness, empty-md semantics, Build Log entry)
+- Fixed per re-review: cli doctor filters manifest q to "demo/" paths + aligned msg; models _extract + parse_pdf use splitext[0] for clean filename title (no .pdf); progress.md new top Build Log; test_store.py updated test_empty_chunks_noop to expect 0-chunk manifest row; test_ingest.py capture test + other re-patched embed/store + robust asserts; ingest rel + should_ignore made to support both target-rel and cwd-rel (try target first for local patterns, cwd for root like !demo); ingest now routes to failed ONLY on q=="failed" (empty md with q=ok,0chunks treated as added=0 not failed); added Build Log entry.
+- Re-ran full pytest (ingest+store), doctor, pdf ingest 20/20 + capture + rag.
+- Maintains PRD §13/14, AGENTS log rule.
+
+### 2026-06-19 — Phase 0b complete: PDF T0/T1 + sb capture + inbox + failure visibility
+- Implemented per PRD §12 (Phase 0b), §7.1 (capture+ingest), §8 (PDF section-aware via # Page N), §9/14 (local pymupdf+pdfplumber, parse fail -> failed, status shows type/q). Added pymupdf/pdfplumber to pyproject; updated .secondbrainignore (commented *.pdf, !demo/pdfs/** + Phase 0b note); extended models.py ( _extract_text_from_pdf + parse_pdf_document reusing chunk_markdown), ingest.py (find_ingest_files + pdf/md branch + negation support), cli.py (capture cmd + pdf in ingest help/status), store.py (manifest doc_type/parse_quality cols for status visibility).
+- Created 20 synthetic demo/pdfs/*.pdf (text extractable, mirroring Phoenix/Falcon/Acme etc themes) using fitz; extended tests/test_ingest.py with monkeypatch pdf + capture tests.
+- Updated docs/progress.md + README phasing table.
+- Validation: py_compile all; python -c imports; ingest demo/pdfs (20/20 ok/partial, >=16/20); capture lands in inbox/ + auto-ingest + queryable via baseline_rag (synthesized hits include .pdf sources); no md breakage; doctor runs; failed tracked on parse error.
+- Acceptance met exactly. All smallest changes, relative/demo paths only, AGENTS hygiene.
+- Advances Phase 0b fully (no OCR/cloud/other).
 
 ### 2026-06-19 — Post-implementation review + fixes (unleashed subagents)
 - Ran multiple parallel subagents (packaging/imports, privacy/airgap/zones, eval/harness, code+PRD compliance) to review all 10 Phase 0a commits + artifacts.

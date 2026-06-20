@@ -101,6 +101,8 @@ def extract_document_metadata(
     text: str,
     data_zone: str = "PUBLIC_DEMO",
     parse_method: str = "markdown",
+    doc_type: str = "markdown",
+    parse_quality: str = "ok",
 ) -> DocumentMetadata:
     """Extract DocumentMetadata from raw markdown text + path.
 
@@ -160,11 +162,11 @@ def extract_document_metadata(
         tags=tags,
         wikilinks=wikilinks,
         heading_path=heading_path,
-        doc_type="markdown",
+        doc_type=doc_type,
         data_zone=data_zone,
         embedding_model_version=None,
         parse_method=parse_method,
-        parse_quality="ok",
+        parse_quality=parse_quality,
     )
 
 
@@ -179,6 +181,86 @@ def parse_document(
     """
     meta = extract_document_metadata(source_path, text, data_zone)
     chunks = chunk_markdown(text)
+    return meta, chunks
+
+
+def _extract_text_from_pdf(path: str) -> tuple[str, str, str, str]:
+    """Extract text from text-native PDF.
+
+    Returns (md_text_with_#Page_headings, title, parse_quality, parse_method).
+    Page headings allow reuse of chunk_markdown for heading_path.
+    Prefers pymupdf (fitz), falls back to pdfplumber. Errors -> failed.
+    """
+    import os
+
+    # Primary: pymupdf
+    try:
+        import fitz  # pymupdf
+        doc = fitz.open(path)
+        pages_text: list[str] = []
+        for i, page in enumerate(doc):
+            txt = page.get_text() or ""
+            pages_text.append(f"# Page {i + 1}\n\n{txt.strip()}\n")
+        full = "\n\n".join(pages_text)
+        meta_title = (doc.metadata or {}).get("title") or ""
+        title = meta_title.strip() or os.path.splitext(os.path.basename(path))[0]
+        doc.close()
+        quality = "ok" if full.strip() else "partial"
+        method = "pdf-pymupdf"
+        return full, title, quality, method
+    except Exception:
+        pass
+
+    # Fallback: pdfplumber
+    try:
+        import pdfplumber
+        pages_text = []
+        with pdfplumber.open(path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                txt = page.extract_text() or ""
+                pages_text.append(f"# Page {i + 1}\n\n{txt.strip()}\n")
+            meta = pdf.metadata or {}
+            meta_title = meta.get("Title") or meta.get("title") or ""
+            title = meta_title.strip() or os.path.splitext(os.path.basename(path))[0]
+            full = "\n\n".join(pages_text)
+            quality = "ok" if full.strip() else "partial"
+            method = "pdf-plumber"
+            return full, title, quality, method
+    except Exception:
+        pass
+
+    # total fail (quarantine; broad to handle corrupt PDFs from any parser)
+    return "", os.path.basename(path), "failed", "pdf-failed"
+
+
+def parse_pdf_document(
+    source_path: str,
+    data_zone: str = "PUBLIC_DEMO",
+) -> Tuple[DocumentMetadata, List[Chunk]]:
+    """Parse text-native PDF to (meta, chunks).
+
+    Constructs page-section markdown for reuse of chunk_markdown.
+    Sets doc_type="pdf", appropriate parse_method/quality.
+    """
+    import os
+    md_text, pdf_title, quality, method = _extract_text_from_pdf(source_path)
+    if quality == "failed" or not md_text.strip():
+        meta = extract_document_metadata(
+            source_path, "", data_zone, parse_method=method, doc_type="pdf", parse_quality="failed"
+        )
+        return meta, []
+
+    meta = extract_document_metadata(
+        source_path, md_text, data_zone, parse_method=method, doc_type="pdf", parse_quality=quality
+    )
+    if pdf_title:
+        base = os.path.splitext(os.path.basename(source_path))[0]
+        cur = (meta.title or "").strip()
+        is_page_title = cur.lower().startswith("page ")
+        if (not cur or is_page_title or cur == base):
+            meta.title = pdf_title
+            meta.heading_path = pdf_title or "ROOT"
+    chunks = chunk_markdown(md_text)
     return meta, chunks
 
 

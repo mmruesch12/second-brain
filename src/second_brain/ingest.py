@@ -1,10 +1,9 @@
-"""Markdown ingest pipeline for Phase 0a.
+"""Ingest pipeline for Phase 0a/0b.
 
-`sb ingest <path>` : recursively ingest .md files (respect .secondbrainignore, assign DataZone, parse+embed+store)
+`sb ingest <path>` : recursively ingest .md and text-native .pdf (respect .secondbrainignore, DataZone, parse+embed+store)
 `sb ingest --status` : show manifest from store.
 
-Uses existing parse_document + add_document.
-Implements basic .secondbrainignore and zone resolution per docs/data-zones.md and .secondbrainignore.
+Supports parse_document (md) and parse_pdf_document (pdf T0/T1).
 """
 
 import fnmatch
@@ -12,7 +11,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from second_brain.models import parse_document
+from second_brain.models import parse_document, parse_pdf_document
 from second_brain.store import add_document, get_manifest_status
 
 
@@ -31,22 +30,32 @@ def load_ignore_patterns(ignore_path: Optional[Path] = None) -> List[str]:
 
 
 def should_ignore(rel_path: Path, patterns: List[str]) -> bool:
-    """Basic .gitignore-style matcher supporting *, **, etc."""
+    """Basic .gitignore-style matcher supporting *, **, etc. Basic ! negation support (for Phase 0b demo/pdfs)."""
     s = str(rel_path).replace("\\", "/")
+    ignored = False
     for pat in patterns:
         p = pat.replace("\\", "/")
-        # direct
+        if p.startswith("!"):
+            neg = p[1:].lstrip()
+            if neg:
+                if (fnmatch.fnmatch(s, neg) or fnmatch.fnmatch(s, neg.rstrip("/")) or
+                    ("**" in neg and re.match("^" + re.escape(neg).replace(r"\*\*", ".*").replace(r"\*", "[^/]*") + "$", s)) or
+                    (neg.endswith("/**") and s.startswith(neg[:-3]))):
+                    ignored = False
+            continue
+        # ignore patterns
         if fnmatch.fnmatch(s, p) or fnmatch.fnmatch(s, p.rstrip("/")):
-            return True
-        # ** support crude
+            ignored = True
+            continue
         if "**" in p:
             regex_pat = "^" + re.escape(p).replace(r"\*\*", ".*").replace(r"\*", "[^/]*") + "$"
             if re.match(regex_pat, s):
-                return True
-        # dir prefix
+                ignored = True
+                continue
         if p.endswith("/**") and s.startswith(p[:-3]):
-            return True
-    return False
+            ignored = True
+            continue
+    return ignored
 
 
 def resolve_zone(source_path: str, override: Optional[str] = None, frontmatter_zone: Optional[str] = None) -> str:
@@ -79,16 +88,18 @@ def _parse_frontmatter_zone(text: str) -> Optional[str]:
     return None
 
 
-def find_markdown_files(target: Path) -> List[Path]:
-    if target.is_file() and target.suffix.lower() == ".md":
+def find_ingest_files(target: Path) -> List[Path]:
+    """Find .md and .pdf files (text-native PDFs for Phase 0b)."""
+    exts = {".md", ".pdf"}
+    if target.is_file() and target.suffix.lower() in exts:
         return [target]
     if target.is_dir():
-        return [p for p in target.rglob("*.md") if p.is_file()]
+        return [p for p in target.rglob("*") if p.is_file() and p.suffix.lower() in exts]
     return []
 
 
 def ingest(target: str, zone_override: Optional[str] = None) -> Dict[str, Any]:
-    """Ingest a file or directory of markdown.
+    """Ingest a file or directory of .md or .pdf (Phase 0b text PDFs).
 
     Returns summary with added, skipped, failed counts.
     """
@@ -96,29 +107,39 @@ def ingest(target: str, zone_override: Optional[str] = None) -> Dict[str, Any]:
     # Prefer ignore file next to target root or cwd (robust for external paths)
     ignore_path = root / ".secondbrainignore" if root.is_dir() else root.parent / ".secondbrainignore"
     patterns = load_ignore_patterns(ignore_path if ignore_path.exists() else None)
-    files = find_markdown_files(root)
+    # rel root = dir of the .sbignore we actually loaded patterns from (local for target .sb, cwd for default/root patterns)
+    if ignore_path and ignore_path.exists():
+        ignore_root_for_rel = ignore_path.parent
+    else:
+        ignore_root_for_rel = Path.cwd()
+    files = find_ingest_files(root)
     added = 0
     skipped = 0
     failed = 0
     for f in files:
         try:
-            # rel relative to target root or cwd for ignore matching
-            try:
-                rel = f.relative_to(root)
-            except Exception:
-                rel = f.relative_to(Path.cwd()) if f.is_relative_to(Path.cwd()) else f.name
+            rel = f.relative_to(ignore_root_for_rel)
         except Exception:
             rel = f.name
         if should_ignore(rel, patterns):
             skipped += 1
             continue
         try:
-            text = f.read_text(encoding="utf-8", errors="ignore")
-            fm_zone = _parse_frontmatter_zone(text)
-            z = resolve_zone(str(f), zone_override, fm_zone)
-            meta, chunks = parse_document(str(f), text, data_zone=z)
+            suffix = f.suffix.lower()
+            if suffix == ".pdf":
+                meta, chunks = parse_pdf_document(str(f), data_zone=resolve_zone(str(f), zone_override, None))
+                # note: pdf parse does not use fm zone (text PDFs rarely have yaml fm); zone from path/override
+            else:
+                text = f.read_text(encoding="utf-8", errors="ignore")
+                fm_zone = _parse_frontmatter_zone(text)
+                z = resolve_zone(str(f), zone_override, fm_zone)
+                meta, chunks = parse_document(str(f), text, data_zone=z)
             add_document(meta, chunks)
-            added += 1
+            # only q=="failed" counts as failed (true parse fail per PRD §14); 0-chunk but q=ok (e.g. empty md) treated as added (manifest row still written for visibility)
+            if getattr(meta, "parse_quality", "ok") == "failed":
+                failed += 1
+            else:
+                added += 1
         except Exception:
             failed += 1
     return {"added": added, "skipped": skipped, "failed": failed, "total_files": len(files)}

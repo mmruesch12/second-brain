@@ -54,57 +54,36 @@ def _init_manifest() -> None:
             modified_at TEXT,
             num_chunks INTEGER NOT NULL,
             data_zone TEXT NOT NULL,
-            title TEXT
+            title TEXT,
+            doc_type TEXT DEFAULT 'markdown',
+            parse_quality TEXT DEFAULT 'ok'
         )
         """
     )
+    # compat for pre-0b dbs (Phase 0b adds pdf visibility)
+    try:
+        conn.execute("ALTER TABLE docs ADD COLUMN doc_type TEXT DEFAULT 'markdown'")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE docs ADD COLUMN parse_quality TEXT DEFAULT 'ok'")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
 
 def add_document(meta: DocumentMetadata, chunks: List[Chunk]) -> None:
-    """Embed all chunks and insert into LanceDB + record manifest entry."""
-    if not chunks:
-        return
-
-    data_dir = get_data_dir()
+    """Embed chunks (if any) into LanceDB + always record manifest entry first (for failed/0-chunk visibility per PRD §14)."""
     _init_manifest()
 
-    db = lancedb.connect(_lancedb_uri())
-
-    # Prepare records with embeddings
-    records: List[Dict[str, Any]] = []
-    for c in chunks:
-        vec = embed_text(c.content)
-        rec = {
-            "vector": vec,
-            "doc_id": meta.doc_id,
-            "chunk_index": c.chunk_index,
-            "content": c.content,
-            "source_path": meta.source_path,
-            "heading_path": c.heading_path,
-            "data_zone": meta.data_zone,
-            "title": meta.title or "",
-        }
-        records.append(rec)
-
-    # Open or create table
-    try:
-        tbl = db.open_table(TABLE_NAME)
-    except Exception:
-        # First time: create with data
-        tbl = db.create_table(TABLE_NAME, data=records, mode="overwrite")
-        return
-
-    tbl.add(records)
-
-    # Update manifest (idempotent on doc_id)
+    # Always record meta to manifest BEFORE vectors (guarantees row even if embed step raises)
     conn = sqlite3.connect(_manifest_path())
     conn.execute(
         """
         INSERT OR REPLACE INTO docs
-        (doc_id, source_path, content_hash, ingested_at, modified_at, num_chunks, data_zone, title)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (doc_id, source_path, content_hash, ingested_at, modified_at, num_chunks, data_zone, title, doc_type, parse_quality)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             meta.doc_id,
@@ -115,10 +94,40 @@ def add_document(meta: DocumentMetadata, chunks: List[Chunk]) -> None:
             len(chunks),
             meta.data_zone,
             meta.title,
+            getattr(meta, "doc_type", "markdown"),
+            getattr(meta, "parse_quality", "ok"),
         ),
     )
     conn.commit()
     conn.close()
+
+    if chunks:
+        db = lancedb.connect(_lancedb_uri())
+
+        # Prepare records with embeddings
+        records: List[Dict[str, Any]] = []
+        for c in chunks:
+            vec = embed_text(c.content)
+            rec = {
+                "vector": vec,
+                "doc_id": meta.doc_id,
+                "chunk_index": c.chunk_index,
+                "content": c.content,
+                "source_path": meta.source_path,
+                "heading_path": c.heading_path,
+                "data_zone": meta.data_zone,
+                "title": meta.title or "",
+            }
+            records.append(rec)
+
+        # Open or create table
+        try:
+            tbl = db.open_table(TABLE_NAME)
+        except Exception:
+            # First time: create with data
+            tbl = db.create_table(TABLE_NAME, data=records, mode="overwrite")
+        else:
+            tbl.add(records)
 
 
 def get_manifest_status() -> List[Dict[str, Any]]:
@@ -126,7 +135,8 @@ def get_manifest_status() -> List[Dict[str, Any]]:
     _init_manifest()
     conn = sqlite3.connect(_manifest_path())
     cur = conn.execute(
-        "SELECT doc_id, source_path, content_hash, ingested_at, num_chunks, data_zone, title "
+        "SELECT doc_id, source_path, content_hash, ingested_at, num_chunks, data_zone, title, "
+        "COALESCE(doc_type, 'markdown'), COALESCE(parse_quality, 'ok') "
         "FROM docs ORDER BY ingested_at DESC"
     )
     rows = cur.fetchall()
@@ -140,6 +150,8 @@ def get_manifest_status() -> List[Dict[str, Any]]:
             "num_chunks": r[4],
             "data_zone": r[5],
             "title": r[6],
+            "doc_type": r[7],
+            "parse_quality": r[8],
         }
         for r in rows
     ]

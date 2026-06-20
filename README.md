@@ -18,8 +18,8 @@ This project serves both personal productivity and as a living, public demonstra
 
 ## Project Status
 
-- **Version**: 0.0.1 (Phase 0a baseline)
-- **Status**: Phase 0a complete (spec gates + Markdown ingest + baseline RAG + eval + CLI). See progress.md and PRD for details.
+- **Version**: 0.0.1 (Phase 0a/0b baseline)
+- **Status**: Phase 0a+0b complete (Markdown+PDF ingest + capture + baseline + eval + CLI + doctor stats). See progress.md and PRD for details.
 - **Owner**: Matt Ruesch
 - **Date**: 2026-06-19
 
@@ -67,12 +67,12 @@ See the v0.2 PRD for complete scoping, phase gates, and design principles.
 | Phase | Focus | Target | Status |
 |-------|-------|--------|--------|
 | 0a | Markdown ingest + baseline RAG + eval harness + CLI doctor | 2–3 days | **Complete** (on demo/) |
-| 0b | PDF ingest + quick capture | 1–2 days | Not started |
+| 0b | PDF ingest + quick capture | 1–2 days | **Complete** (20 demo PDFs + capture validated) |
 | 1 | Retrieval hardening (no new agents) | 2–3 days | Not started |
 | 2 | Citation verifier + starter rituals | 1–2 days | Not started |
 | 3 | Reflection CLI + real-world iteration | 1 weekend + 3–4 weeks | Not started |
 
-Target: Useful, personally valuable MVP in 6–10 focused days (Phases 0–2), then iterate in daily use. Phase 0a acceptance verified via harness + `sb doctor`. See `docs/progress.md`.
+Target: Useful, personally valuable MVP in 6–10 focused days (Phases 0–2), then iterate in daily use. Phase 0a/0b acceptance verified via harness + `sb doctor` (incl. PDF stats). See `docs/progress.md`.
 
 ---
 
@@ -103,7 +103,7 @@ sb ingest --status
 
 **Note**: Full runtime requires Ollama + models. Use `sb doctor` and `PYTHONPATH=src python -m pytest` (with mocks) for verification without all deps.
 
-See the v0.2 PRD for architecture (LanceDB, LiteLLM/Ollama, DataZones, .secondbrainignore). Current Phase 0a implements immortal `baseline_rag`, cited synthesis, golden eval harness (demo corpus), and `sb ingest|query|doctor`. Later phases add PDF, rituals (`sb weekly`), verifier per gates.
+See the v0.2 PRD for architecture (LanceDB, LiteLLM/Ollama, DataZones, .secondbrainignore). Current Phase 0a/0b implements immortal `baseline_rag`, cited synthesis, golden eval harness (demo corpus), `sb ingest|query|capture|doctor` (PDF support). Later phases add rituals etc per gates.
 
 ---
 

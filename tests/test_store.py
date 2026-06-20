@@ -36,7 +36,7 @@ def tmp_data_dir(monkeypatch):
         reset_index()
 
 
-def _fake_meta(source_path: str = "demo/notes/test.md", data_zone: str = "PUBLIC_DEMO") -> DocumentMetadata:
+def _fake_meta(source_path: str = "demo/notes/test.md", data_zone: str = "PUBLIC_DEMO", doc_type: str = "markdown", parse_quality: str = "ok") -> DocumentMetadata:
     now = datetime.utcnow()
     return DocumentMetadata(
         source_path=source_path,
@@ -46,6 +46,8 @@ def _fake_meta(source_path: str = "demo/notes/test.md", data_zone: str = "PUBLIC
         title="Test Doc",
         tags=["test"],
         data_zone=data_zone,
+        doc_type=doc_type,
+        parse_quality=parse_quality,
     )
 
 
@@ -62,13 +64,14 @@ def _fake_chunks(n: int = 2) -> List[Chunk]:
 
 
 def test_add_document_and_manifest(monkeypatch):
-    # Patch embed to deterministic fixed vector (no ollama)
+    # Patch embed to deterministic fixed vector (no ollama). Patch both module attr and the name bound in store (from-import).
     def fake_embed(text: str):
         # simple hash based deterministic 768-dim
         base = sum(ord(c) for c in text) % 100 / 100.0
         return [base + (i % 7) * 0.01 for i in range(768)]
 
     monkeypatch.setattr(emb_mod, "embed_text", fake_embed)
+    monkeypatch.setattr("second_brain.store.embed_text", fake_embed)
 
     meta = _fake_meta()
     chunks = _fake_chunks(3)
@@ -79,6 +82,8 @@ def test_add_document_and_manifest(monkeypatch):
     assert status[0]["doc_id"] == meta.doc_id
     assert status[0]["num_chunks"] == 3
     assert status[0]["data_zone"] == "PUBLIC_DEMO"
+    assert status[0].get("doc_type") == "markdown"
+    assert status[0].get("parse_quality") == "ok"
 
 
 def test_search_basic(monkeypatch):
@@ -87,6 +92,7 @@ def test_search_basic(monkeypatch):
         return [base + (i % 5) * 0.001 for i in range(768)]
 
     monkeypatch.setattr(emb_mod, "embed_text", fake_embed)
+    monkeypatch.setattr("second_brain.store.embed_text", fake_embed)
 
     meta = _fake_meta()
     add_document(meta, _fake_chunks(2))
@@ -101,6 +107,7 @@ def test_zone_filter_in_search(monkeypatch):
         return [0.5 + (i % 3) * 0.01 for i in range(768)]
 
     monkeypatch.setattr(emb_mod, "embed_text", fake_embed)
+    monkeypatch.setattr("second_brain.store.embed_text", fake_embed)
 
     meta_p = _fake_meta(data_zone="PERSONAL")
     add_document(meta_p, _fake_chunks(1))
@@ -117,8 +124,14 @@ def test_zone_filter_in_search(monkeypatch):
 
 
 def test_empty_chunks_noop(monkeypatch):
+    """0-chunk now records manifest row (for failure visibility) but no vectors; updated post 0b fix."""
     def fake_embed(_): return [0.0]*768
     monkeypatch.setattr(emb_mod, "embed_text", fake_embed)
+    monkeypatch.setattr("second_brain.store.embed_text", fake_embed)
 
     add_document(_fake_meta(), [])
-    assert get_manifest_status() == []
+    status = get_manifest_status()
+    assert len(status) == 1
+    assert status[0]["num_chunks"] == 0
+    # no vectors added for 0-chunk (lance table may be empty or prior)
+    # (vectors conditional in add_document)

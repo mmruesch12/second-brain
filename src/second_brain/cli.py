@@ -9,14 +9,14 @@ import typer
 
 from second_brain.ingest import ingest, get_status
 
-app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0a MVP")
+app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0a/0b MVP")
 
 
 @app.command("ingest")
 def ingest_cmd(
     path: Optional[str] = typer.Argument(
         None,
-        help="Path to markdown file or directory. Omit with --status to show manifest only.",
+        help="Path to .md/.pdf file or dir. Omit with --status to show manifest only. (Phase 0b PDFs)",
     ),
     zone: Optional[str] = typer.Option(
         None, "--zone", "-z", help="Override DataZone (PERSONAL | WORK_ADJACENT | PUBLIC_DEMO)"
@@ -25,9 +25,9 @@ def ingest_cmd(
         False, "--status", help="Show ingest manifest/status instead of ingesting"
     ),
 ) -> None:
-    """Ingest markdown files or show status.
+    """Ingest markdown or text-native PDF files or show status.
 
-    Respects .secondbrainignore and DataZone rules.
+    Respects .secondbrainignore and DataZone rules. (Phase 0b: .pdf T0/T1 supported)
     """
     if status:
         rows = get_status()
@@ -36,9 +36,11 @@ def ingest_cmd(
             raise typer.Exit()
         typer.echo("Ingest status (most recent first):")
         for r in rows:
+            dtype = r.get("doc_type", "markdown")
+            q = r.get("parse_quality", "ok")
             typer.echo(
                 f"  {r['doc_id']} | {r['source_path']} | zone={r['data_zone']} | "
-                f"chunks={r['num_chunks']} | {r['ingested_at']}"
+                f"chunks={r['num_chunks']} | type={dtype} q={q} | {r['ingested_at']}"
             )
         return
 
@@ -53,6 +55,34 @@ def ingest_cmd(
         f"Ingest complete: added={summary['added']} skipped={summary['skipped']}{extra} "
         f"(from {summary['total_files']} files)"
     )
+
+
+@app.command("capture")
+def capture_cmd(
+    text: str = typer.Argument(..., help="Text to capture quickly into inbox/ as timestamped .md (auto-ingests)"),
+) -> None:
+    """Quick capture per PRD §7.1: lands in inbox/ as .md + auto-ingest for immediate queryability.
+
+    <60s target. Uses resolve_zone (inbox/ -> PERSONAL by default).
+    """
+    from pathlib import Path
+    from datetime import datetime
+
+    inbox = Path("inbox")
+    inbox.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d-%H%M%S-%f")  # microsec to avoid collision on rapid captures
+    fpath = inbox / f"{ts}.md"
+    content = f"""---
+title: Capture {ts}
+date: {datetime.now().date().isoformat()}
+---
+
+{text}
+"""
+    fpath.write_text(content, encoding="utf-8")
+    # auto-ingest so immediately queryable via baseline_rag
+    summary = ingest(str(fpath))
+    typer.echo(f"Captured {fpath.name} (added={summary.get('added', 0)})")
 
 
 @app.command("query")
@@ -90,7 +120,7 @@ def query_cmd(
 def doctor_cmd(
     zone: Optional[str] = typer.Option(None, "--zone", help="Filter health to zone"),
 ) -> None:
-    """Health check (smoke test for Phase 0a). Reports module status, acceptance, basic stats."""
+    """Health check (smoke test for Phase 0a/0b). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13."""
     typer.echo("sb doctor — Personal Agentic Second Brain health check")
     issues = []
 
@@ -111,6 +141,31 @@ def doctor_cmd(
     except Exception as e:
         issues.append(f"demo glob: {e}")
 
+    # PDF parse stats (Phase 0b, PRD §13)
+    try:
+        import glob as _glob
+        pdf_files = _glob.glob("demo/**/*.pdf", recursive=True)
+        pdf_count = len(pdf_files)
+        ok_p = partial_p = failed_p = 0
+        try:
+            from second_brain.ingest import get_status
+            rows = get_status() or []
+            for r in rows:
+                sp = str(r.get("source_path", "")).lower()
+                if (r.get("doc_type") == "pdf" or sp.endswith(".pdf")) and "demo/" in sp:
+                    q = r.get("parse_quality", "ok")
+                    if q == "failed":
+                        failed_p += 1
+                    elif q == "partial":
+                        partial_p += 1
+                    else:
+                        ok_p += 1
+        except Exception:
+            pass  # manifest may be empty
+        typer.echo(f"  Demo PDFs: {pdf_count} (ok={ok_p}, partial={partial_p}, failed={failed_p}; from manifest demo/ paths)")
+    except Exception as e:
+        issues.append(f"pdf stats: {e}")
+
     # Verify acceptance (from harness)
     try:
         from second_brain.eval_harness import verify_phase0a_acceptance
@@ -127,7 +182,7 @@ def doctor_cmd(
         for i in issues:
             typer.echo(f"    - {i}")
     else:
-        typer.echo("  Status: healthy (Phase 0a smoke OK)")
+        typer.echo("  Status: healthy (Phase 0a/0b smoke OK)")
 
     raise typer.Exit(code=1 if issues else 0)
 

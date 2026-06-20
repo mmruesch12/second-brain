@@ -53,7 +53,9 @@ actions/
 triage-*.md
 
 # === Large binaries, media, DBs, caches (avoid polluting index) ===
-*.pdf
+# *.pdf commented for Phase 0b: text-native (T0/T1) PDFs now supported via pymupdf/pdfplumber.
+# Scanned/OCR PDFs remain out of scope (Tier 2). Use ! negation for demo support.
+!demo/pdfs/**
 *.png
 *.jpg
 *.jpeg
