@@ -59,7 +59,8 @@ def should_ignore(rel_path: Path, patterns: List[str]) -> bool:
 
 
 def resolve_zone(source_path: str, override: Optional[str] = None, frontmatter_zone: Optional[str] = None) -> str:
-    """Resolve DataZone with precedence: --zone > frontmatter > path heuristic (demo->PUBLIC else PERSONAL)."""
+    """Resolve DataZone with precedence: --zone > frontmatter > path heuristic (demo->PUBLIC_DEMO else PERSONAL).
+    Per data-zones.md: retrieval enforces; 'all' bypasses at query (with warning in CLI)."""
     if override:
         return override
     if frontmatter_zone:

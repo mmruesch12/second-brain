@@ -1,6 +1,7 @@
 """Minimal synthesizer (LiteLLM + Ollama) per PRD §7/9.
 
-Uses baseline_rag for retrieve, then single LLM call to produce SynthesisResponse.
+Uses hardened retrieve (filters + 1-hop wikilinks + heuristic router) then single LLM call to produce SynthesisResponse.
+baseline_rag remains immortal for eval comparison / "beat baseline".
 Default profile 'brief' (≤5 bullets + 1 next action).
 Local-first via litellm ollama provider; respects airgap/zone indirectly via retriever.
 """
@@ -12,7 +13,7 @@ import uuid
 import litellm
 
 from second_brain.models import SynthesisResponse, Citation
-from second_brain.retriever import baseline_rag
+from second_brain.retriever import baseline_rag, retrieve, heuristic_router
 
 
 def synthesize(
@@ -20,11 +21,13 @@ def synthesize(
     limit: int = 5,
     zone: Optional[str] = None,
     profile: str = "brief",
+    since: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    path_prefix: Optional[str] = None,
 ) -> SynthesisResponse:
-    """Retrieve via baseline_rag then synthesize with LLM.
+    """Retrieve via hardened retrieve (filters + wikilinks via router) then synthesize (1 LLM).
 
-    Returns structured SynthesisResponse.
-    Max 1 LLM call (synthesis).
+    baseline_rag kept for comparison only (immortal). Max 1 LLM call.
     """
     if not query or not query.strip():
         return SynthesisResponse(
@@ -33,7 +36,14 @@ def synthesize(
             model_used="none",
         )
 
-    hits = baseline_rag(query, limit=limit, zone=zone)
+    # Phase 1: heuristic router + hardened retrieve (baseline_rag contract preserved for eval beats)
+    rcfg = heuristic_router(query, zone=zone, since=since, limit=limit, profile=profile, path_prefix=path_prefix, tags=tags, ref_date=None)
+    eff_limit = rcfg.get("limit", limit)
+    eff_zone = rcfg.get("zone") or zone
+    eff_since = rcfg.get("since") or since
+    eff_tags = rcfg.get("tags") or tags
+    eff_path = rcfg.get("path_prefix") or path_prefix
+    hits = retrieve(query, limit=eff_limit, zone=eff_zone, since=eff_since, path_prefix=eff_path, tags=eff_tags)
 
     if not hits:
         return SynthesisResponse(
@@ -50,8 +60,14 @@ def synthesize(
         context_lines.append(ctx)
     context = "\n\n".join(context_lines)
 
-    # Simple prompt for brief profile
-    system = "You are a concise personal knowledge assistant. Answer ONLY from the provided context. Use markdown. For 'brief' profile: at most 5 bullets + exactly 1 'Next action' if applicable. Cite inline using [path: heading] format."
+    # Differentiated profiles per PRD (brief default: <=5 bullets +1 next action)
+    if profile == "brief":
+        pinstr = "at most 5 bullets + exactly 1 'Next action' if applicable. Be concise."
+    elif profile == "standard":
+        pinstr = "5-8 bullets or short paras with key details; list explicit sources."
+    else:
+        pinstr = "exhaustive detail from context, full citations, quote spans, coverage summary."
+    system = f"You are a personal knowledge assistant. Answer ONLY from the provided context. Use markdown. Profile '{profile}': {pinstr} Cite inline using [path: heading] format."
     user = f"""Context:
 {context}
 

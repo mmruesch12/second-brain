@@ -7,6 +7,7 @@ Implements local embeddings + LanceDB index + manifest (PRD §9, §12, ADR-001).
 - Embeddings always local-only via embeddings module.
 """
 
+import fnmatch
 import os
 import sqlite3
 from datetime import datetime
@@ -117,6 +118,9 @@ def add_document(meta: DocumentMetadata, chunks: List[Chunk]) -> None:
                 "heading_path": c.heading_path,
                 "data_zone": meta.data_zone,
                 "title": meta.title or "",
+                "modified_at": meta.modified_at.isoformat() if meta.modified_at else None,
+                "tags": list(meta.tags) if meta.tags else [],
+                "wikilinks": list(meta.wikilinks) if meta.wikilinks else [],
             }
             records.append(rec)
 
@@ -157,14 +161,97 @@ def get_manifest_status() -> List[Dict[str, Any]]:
     ]
 
 
+def _parse_since(s: Optional[str]) -> Optional[datetime]:
+    if not s:
+        return None
+    try:
+        d = s[:10]
+        return datetime.fromisoformat(f"{d}T00:00:00")
+    except Exception:
+        return None
+
+
+def _apply_metadata_filters(
+    records: List[Dict[str, Any]],
+    data_zone: Optional[str] = None,
+    path_prefix: Optional[str] = None,
+    since: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    match_all_tags: bool = False,
+    wikilink_target: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Post-filter for Phase 1 metadata filters (path prefix/glob, date since, tags any/all, wikilink, zone)."""
+    if not records:
+        return records
+    since_dt = _parse_since(since)
+    tagset = set(t.lower() for t in (tags or []))
+    out: List[Dict[str, Any]] = []
+    for r in records:
+        # None or falsy (not 'all') = no zone filter (broad; allows default PERSONAL per resolve/ingest + data-zones).
+        # Explicit zone requested enforces (zero leak on mixed when provided). Use --zone all (with CLI warn) for broad explicit.
+        if data_zone and data_zone.lower() not in ("all", "none", "") and r.get("data_zone") != data_zone:
+            continue
+        sp = str(r.get("source_path", "")).replace("\\", "/")
+        if path_prefix:
+            pp = str(path_prefix).replace("\\", "/")
+            # normalize for abs from real ingest (Path.resolve()) vs rel "demo/..." ; support subdir/glob
+            sp_norm = sp
+            if "/demo/" in sp:
+                sp_norm = "demo/" + sp.split("/demo/", 1)[1]
+            elif sp.startswith("demo/") or sp == "demo":
+                sp_norm = sp
+            pp_norm = pp
+            if pp.startswith("demo/") or pp == "demo":
+                pp_norm = pp
+            if not (sp_norm.startswith(pp_norm) or fnmatch.fnmatch(sp_norm, pp_norm) or
+                    fnmatch.fnmatch(sp, "**/" + pp_norm.lstrip("./")) or sp.endswith("/" + pp_norm.lstrip("./")) or
+                    sp.endswith(pp_norm)):
+                continue
+        if since_dt:
+            ma = r.get("modified_at")
+            if ma:
+                try:
+                    md = datetime.fromisoformat(str(ma)[:19].replace(" ", "T"))
+                    if md < since_dt:
+                        continue
+                except Exception:
+                    pass  # keep if unparsable
+        rtags = r.get("tags") or []
+        if isinstance(rtags, str):
+            rtags = [x.strip() for x in rtags.split(",") if x.strip()]
+        if tagset:
+            rtset = set(str(t).lower() for t in rtags)
+            if match_all_tags:
+                if not tagset.issubset(rtset):
+                    continue
+            elif not (tagset & rtset):
+                continue
+        if wikilink_target:
+            wls = r.get("wikilinks") or []
+            if isinstance(wls, str):
+                wls = [x.strip() for x in wls.split(",") if x.strip()]
+            base = Path(sp).stem
+            wt = wikilink_target.strip()
+            # tighten: exact wikilink match or exact stem/basename reverse (avoid substring overmatch on short tokens)
+            matched = wt in wls or wt == base or any(w.strip() == wt for w in wls)
+            if not matched:
+                continue
+        out.append(r)
+    return out
+
+
 def search(
     query: str,
     limit: int = 8,
     data_zone: Optional[str] = None,
+    path_prefix: Optional[str] = None,
+    since: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    match_all_tags: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Basic semantic search. Returns raw records (vector search + optional zone filter).
+    """Semantic search + Phase 1 metadata filters (path, since, tags, zone). Post-filter for robustness.
 
-    Used by baseline_rag later.
+    Used by baseline_rag (backward compat) and hardened retrieve.
     """
     if not query:
         return []
@@ -174,15 +261,53 @@ def search(
         tbl = db.open_table(TABLE_NAME)
     except Exception:
         return []
-    q = tbl.search(vec).limit(limit)
+    q = tbl.search(vec).limit(max(limit * 2, 20))  # overfetch for post-filter
     results = q.to_list()
-    if data_zone:
-        # Reliable post-filter (MVP; works regardless of Lance .where support)
-        results = [r for r in results if r.get("data_zone") == data_zone]
-    # strip heavy vector from results for caller convenience
+    results = _apply_metadata_filters(
+        results,
+        data_zone=data_zone,
+        path_prefix=path_prefix,
+        since=since,
+        tags=tags,
+        match_all_tags=match_all_tags,
+    )
+    # strip heavy vector
     for r in results:
         r.pop("vector", None)
-    return results
+    return results[:limit]
+
+
+def fetch_by_filter(
+    data_zone: Optional[str] = None,
+    path_prefix: Optional[str] = None,
+    since: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    wikilink_target: Optional[str] = None,
+    limit: int = 50,
+) -> List[Dict[str, Any]]:
+    """Metadata-only fetch for wikilink expansion / filter queries (dummy vec + post filter)."""
+    db = lancedb.connect(_lancedb_uri())
+    try:
+        tbl = db.open_table(TABLE_NAME)
+    except Exception:
+        return []
+    dummy = [0.0] * EMBED_DIM
+    try:
+        q = tbl.search(dummy).limit(max(limit * 2, 100))
+        results = q.to_list()
+    except Exception:
+        return []
+    results = _apply_metadata_filters(
+        results,
+        data_zone=data_zone,
+        path_prefix=path_prefix,
+        since=since,
+        tags=tags,
+        wikilink_target=wikilink_target,
+    )
+    for r in results:
+        r.pop("vector", None)
+    return results[:limit]
 
 
 def reset_index() -> None:

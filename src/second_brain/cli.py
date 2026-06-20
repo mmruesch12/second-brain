@@ -91,17 +91,20 @@ def query_cmd(
     profile: str = typer.Option("brief", "--profile", "-p", help="Output profile: brief | standard | audit"),
     zone: Optional[str] = typer.Option(None, "--zone", "-z", help="Restrict to DataZone"),
     limit: int = typer.Option(5, "--limit", help="Max chunks to retrieve"),
+    since: Optional[str] = typer.Option(None, "--since", help="Date filter YYYY-MM-DD (notes on/after)"),
     json_out: bool = typer.Option(False, "--json", help="Output full JSON SynthesisResponse"),
     debug: bool = typer.Option(False, "--debug", help="Show full trace / response"),
 ) -> None:
-    """Answer a question using baseline retrieval + synthesis (default brief profile).
+    """Answer using Phase 1 hardened retrieval (filters, wikilinks, heuristic router) + synthesis (1 LLM).
 
-    Uses immortal baseline_rag + synthesizer (1 LLM call).
+    Default brief profile (<=5 bullets + 1 next action). --since and --zone for metadata filters.
     """
     # Import inside to avoid top-level dep on litellm when not needed (e.g. ingest only, smoke)
     from second_brain.synthesizer import synthesize
 
-    resp = synthesize(question, limit=limit, zone=zone, profile=profile)
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    resp = synthesize(question, limit=limit, zone=zone, profile=profile, since=since)
 
     if json_out or debug:
         # pydantic v2
@@ -120,7 +123,7 @@ def query_cmd(
 def doctor_cmd(
     zone: Optional[str] = typer.Option(None, "--zone", help="Filter health to zone"),
 ) -> None:
-    """Health check (smoke test for Phase 0a/0b). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13."""
+    """Health check (smoke test for Phase 0a/0b + Phase 1). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13. Phase1 retrieve filters/router exercised."""
     typer.echo("sb doctor — Personal Agentic Second Brain health check")
     issues = []
 
@@ -166,13 +169,21 @@ def doctor_cmd(
     except Exception as e:
         issues.append(f"pdf stats: {e}")
 
-    # Verify acceptance (from harness)
+    # Verify acceptance (Phase1 extended)
     try:
         from second_brain.eval_harness import verify_phase0a_acceptance
         v = verify_phase0a_acceptance()
-        typer.echo(f"  Phase 0a acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
+        typer.echo(f"  Phase1 acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
     except Exception as e:
         issues.append(f"verify: {e}")
+
+    # Phase1 smoke: filters/router via retrieve
+    try:
+        from second_brain.retriever import retrieve
+        rh = retrieve("Acme Q3 risks last week", limit=3, zone="PUBLIC_DEMO", since="2026-06-01", tags=["acme"])
+        typer.echo(f"  Phase1 retrieve: hits={len(rh)} (demo realistic e.g. 2026-06-05-acme-q3.md)")
+    except Exception as e:
+        issues.append(f"phase1 retrieve: {e}")
 
     if zone:
         typer.echo(f"  Zone filter: {zone}")
@@ -182,7 +193,7 @@ def doctor_cmd(
         for i in issues:
             typer.echo(f"    - {i}")
     else:
-        typer.echo("  Status: healthy (Phase 0a/0b smoke OK)")
+        typer.echo("  Status: healthy (Phase 0a/0b + Phase1 filters/router smoke OK)")
 
     raise typer.Exit(code=1 if issues else 0)
 

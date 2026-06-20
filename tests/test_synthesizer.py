@@ -1,6 +1,6 @@
 """Tests for minimal synthesizer.
 
-Mocks litellm and baseline_rag.
+Mocks litellm and retrieve (Phase1 path). baseline_rag contract untouched/immortal.
 """
 
 from unittest.mock import patch, MagicMock
@@ -20,7 +20,7 @@ def test_synthesize_with_hits_mocked():
         {"source_path": "demo/a.md", "heading": "H1", "content": "Important fact about Falcon.", "chunk_id": "d1:0"},
     ]
 
-    with patch("second_brain.synthesizer.baseline_rag", return_value=fake_hits):
+    with patch("second_brain.synthesizer.retrieve", return_value=fake_hits):
         mock_resp = MagicMock()
         mock_resp.choices[0].message.content = "- Key point [demo/a.md: H1]\n\nNext action: review Falcon."
         with patch("second_brain.synthesizer.litellm.completion", return_value=mock_resp):
@@ -34,7 +34,7 @@ def test_synthesize_with_hits_mocked():
 
 def test_synthesize_fallback_on_error():
     fake_hits = [{"source_path": "demo/b.md", "heading": "", "content": "Data here.", "chunk_id": "d2:0"}]
-    with patch("second_brain.synthesizer.baseline_rag", return_value=fake_hits):
+    with patch("second_brain.synthesizer.retrieve", return_value=fake_hits):
         with patch("second_brain.synthesizer.litellm.completion", side_effect=Exception("no ollama")):
             res = synthesize("query")
             assert "synthesis unavailable" in res.answer_markdown or "From context" in res.answer_markdown
