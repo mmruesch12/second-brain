@@ -21,8 +21,8 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-19                                 |
 | Active Phase       | Phase 0a — Markdown + Baseline             |
-| Overall Progress   | In Progress                                |
-| Last Significant Entry | Phase 0a: sb doctor added + acceptance verified (PRD §12/13) |
+| Overall Progress   | Phase 0a Complete (with post-implementation review fixes) |
+| Last Significant Entry | Post-review fixes: packaging, airgap, zone filter, pyyaml, 10-demo, error strings, harness fidelity (PRD §3/8/9/10/12/14, AGENTS §3/4/6) |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -41,7 +41,7 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 ## Phase Status
 
 ### Phase 0a — Markdown + Baseline (target 2–3 days)
-**Status:** In Progress (started)
+**Status:** Complete (spec gates + implementation + review fixes + 10-file demo acceptance)
 
 **Deliverables (per PRD §12):**
 - Repo scaffolding
@@ -128,6 +128,13 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-19 — Post-implementation review + fixes (unleashed subagents)
+- Ran multiple parallel subagents (packaging/imports, privacy/airgap/zones, eval/harness, code+PRD compliance) to review all 10 Phase 0a commits + artifacts.
+- Identified/fixed significant issues: missing pyyaml dep; incomplete airgap kill-switch on LLM path (now hard-blocks in synthesizer); unreliable Lance zone filter (now reliable post-filter + updated test); PRD §14 exact error copy for empty; fragile .secondbrainignore rel + external target support; ingest error swallowing (now tracks 'failed'); demo count aligned to PRD 10 (added 1 minimal demo note); harness rubric made query-aware to reduce ceiling/non-faithfulness; packaging/__init__/imports + README/phase table updated for installable Phase 0a reality.
+- All changes followed AGENTS §4 preflight (scans clean, py_compile OK, relative/demo only).
+- Phase 0a now solid on 10 demo files, acceptance verified, privacy/enforcement improved.
+- Advances acceptance criteria fidelity, privacy non-negotiables, eval discipline, packaging per PRD/AGENTS.
 
 ### 2026-06-19 — Phase 0a: sb doctor health check
 - Added `sb doctor` to cli.py (per PRD §13 smoke, AGENTS testing, data-zones.md). Reports module loads, demo corpus count, Phase 0a acceptance (via verify), optional zone filter. Exits non-zero on issues.

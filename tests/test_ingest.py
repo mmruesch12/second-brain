@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.second_brain import ingest as ingest_mod
-from src.second_brain.ingest import (
+from second_brain import ingest as ingest_mod
+from second_brain.ingest import (
     load_ignore_patterns,
     should_ignore,
     resolve_zone,
@@ -28,7 +28,7 @@ def isolate_store(monkeypatch):
         tmp = Path(td)
         monkeypatch.setenv("SECOND_BRAIN_DATA_DIR", str(tmp))
         # patch module globals
-        import src.second_brain.store as store_mod
+        import second_brain.store as store_mod
         store_mod.DEFAULT_DATA_DIR = tmp
         store_mod._init_manifest = lambda: None  # will be called internally
         yield tmp
@@ -68,10 +68,10 @@ title: Test Ingest
     def fake_add(meta, chunks):
         calls.append(("add", meta.doc_id, len(chunks), meta.data_zone))
 
-    monkeypatch.setattr("src.second_brain.ingest.add_document", fake_add)
+    monkeypatch.setattr("second_brain.ingest.add_document", fake_add)
 
     # run from tmp as cwd simulation not strict
-    with patch("src.second_brain.ingest.Path.cwd", return_value=tmp_path):
+    with patch("second_brain.ingest.Path.cwd", return_value=tmp_path):
         res = ingest(str(md))
         assert res["added"] == 1
         assert res["skipped"] == 0
@@ -81,7 +81,7 @@ title: Test Ingest
     def fake_status():
         return [{"doc_id": "d1", "source_path": str(md), "num_chunks": 1, "data_zone": "PUBLIC_DEMO", "ingested_at": "2026-..", "content_hash": "h", "title": "T"}]
 
-    monkeypatch.setattr("src.second_brain.ingest.get_manifest_status", fake_status)
+    monkeypatch.setattr("second_brain.ingest.get_manifest_status", fake_status)
     st = get_status()
     assert len(st) == 1
     assert st[0]["data_zone"] == "PUBLIC_DEMO"
@@ -102,11 +102,11 @@ def test_ingest_dir_with_ignore(tmp_path, monkeypatch):
     def fake_add(m, c):
         calls.append(m.source_path)
 
-    monkeypatch.setattr("src.second_brain.ingest.add_document", fake_add)
+    monkeypatch.setattr("second_brain.ingest.add_document", fake_add)
 
-    with patch("src.second_brain.ingest.Path.cwd", return_value=root):
+    with patch("second_brain.ingest.Path.cwd", return_value=root):
         # reload patterns from our temp root? load looks for . in cwd, patch
-        with patch("src.second_brain.ingest.Path", wraps=Path) as p:
+        with patch("second_brain.ingest.Path", wraps=Path) as p:
             # simpler: run and count
             res = ingest(str(root))
             # good.md should be added, .tmp and secret skipped by ignore
@@ -124,8 +124,8 @@ data_zone: WORK_ADJACENT
     calls = []
     def fake_add(meta, _):
         calls.append(meta.data_zone)
-    monkeypatch.setattr("src.second_brain.ingest.add_document", fake_add)
+    monkeypatch.setattr("second_brain.ingest.add_document", fake_add)
 
-    with patch("src.second_brain.ingest.Path.cwd", return_value=tmp_path):
+    with patch("second_brain.ingest.Path.cwd", return_value=tmp_path):
         ingest(str(f))
         assert calls and calls[0] == "WORK_ADJACENT"

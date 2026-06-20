@@ -11,8 +11,8 @@ import uuid
 
 import litellm
 
-from src.second_brain.models import SynthesisResponse, Citation
-from src.second_brain.retriever import baseline_rag
+from second_brain.models import SynthesisResponse, Citation
+from second_brain.retriever import baseline_rag
 
 
 def synthesize(
@@ -37,7 +37,7 @@ def synthesize(
 
     if not hits:
         return SynthesisResponse(
-            answer_markdown="No relevant content found in the index. Try a broader query or run `sb ingest`.",
+            answer_markdown="No indexed content matched. Suggest broader terms + `sb ingest --status`.",
             profile=profile,
             source_coverage={"n_chunks": 0},
             model_used="none",
@@ -62,22 +62,28 @@ Produce the answer now."""
 
     model = os.getenv("SYNTH_MODEL", "ollama/llama3.1")  # default local via litellm+ollama
 
-    try:
-        resp = litellm.completion(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            max_tokens=600,
-            temperature=0.2,
-        )
-        answer = resp.choices[0].message.content.strip()
-        model_used = model
-    except Exception as e:
-        # Fallback for airgap/no-model or test
-        answer = f"[synthesis unavailable: {str(e)[:100]}]\n\nFrom context:\n" + "\n".join(f"- {h.get('content','')[:80]}..." for h in hits[:3])
-        model_used = "fallback"
+    airgap = os.getenv("SECOND_BRAIN_AIRGAP", "0") == "1"
+    if airgap:
+        # Hard block per AGENTS §3: SECOND_BRAIN_AIRGAP=1 must prevent all egress (LLM path)
+        answer = "Synthesis blocked under airgap (SECOND_BRAIN_AIRGAP=1). Local models only."
+        model_used = "airgap-blocked"
+    else:
+        try:
+            resp = litellm.completion(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                max_tokens=600,
+                temperature=0.2,
+            )
+            answer = resp.choices[0].message.content.strip()
+            model_used = model
+        except Exception as e:
+            # Fallback for no-model or test
+            answer = f"[synthesis unavailable: {str(e)[:100]}]\n\nFrom context:\n" + "\n".join(f"- {h.get('content','')[:80]}..." for h in hits[:3])
+            model_used = "fallback"
 
     citations = [
         Citation(

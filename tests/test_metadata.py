@@ -5,13 +5,13 @@ Covers frontmatter, wikilinks, hashing, title fallback, integration with chunker
 
 import pytest
 
-from src.second_brain.models import (
+from second_brain.models import (
     DocumentMetadata,
     extract_document_metadata,
     parse_document,
     compute_content_hash,
 )
-from src.second_brain.chunker import Chunk
+from second_brain.chunker import Chunk
 
 
 def test_document_metadata_model_fields():

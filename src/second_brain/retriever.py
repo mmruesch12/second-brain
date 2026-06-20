@@ -7,7 +7,7 @@ No LLM calls here (max 0-1 in LOOKUP path).
 
 from typing import List, Dict, Any, Optional
 
-from src.second_brain.store import search
+from second_brain.store import search
 
 
 def baseline_rag(

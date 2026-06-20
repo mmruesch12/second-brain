@@ -12,8 +12,8 @@ import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from src.second_brain.models import parse_document
-from src.second_brain.store import add_document, get_manifest_status
+from second_brain.models import parse_document
+from second_brain.store import add_document, get_manifest_status
 
 
 def load_ignore_patterns(ignore_path: Optional[Path] = None) -> List[str]:
@@ -90,18 +90,25 @@ def find_markdown_files(target: Path) -> List[Path]:
 def ingest(target: str, zone_override: Optional[str] = None) -> Dict[str, Any]:
     """Ingest a file or directory of markdown.
 
-    Returns summary with added, skipped counts.
+    Returns summary with added, skipped, failed counts.
     """
     root = Path(target).resolve()
-    patterns = load_ignore_patterns()
+    # Prefer ignore file next to target root or cwd (robust for external paths)
+    ignore_path = root / ".secondbrainignore" if root.is_dir() else root.parent / ".secondbrainignore"
+    patterns = load_ignore_patterns(ignore_path if ignore_path.exists() else None)
     files = find_markdown_files(root)
     added = 0
     skipped = 0
+    failed = 0
     for f in files:
         try:
-            rel = f.relative_to(Path.cwd()) if f.is_relative_to(Path.cwd()) else f.relative_to(f.parent)
+            # rel relative to target root or cwd for ignore matching
+            try:
+                rel = f.relative_to(root)
+            except Exception:
+                rel = f.relative_to(Path.cwd()) if f.is_relative_to(Path.cwd()) else f.name
         except Exception:
-            rel = f
+            rel = f.name
         if should_ignore(rel, patterns):
             skipped += 1
             continue
@@ -113,8 +120,8 @@ def ingest(target: str, zone_override: Optional[str] = None) -> Dict[str, Any]:
             add_document(meta, chunks)
             added += 1
         except Exception:
-            skipped += 1
-    return {"added": added, "skipped": skipped, "total_files": len(files)}
+            failed += 1
+    return {"added": added, "skipped": skipped, "failed": failed, "total_files": len(files)}
 
 
 def get_status() -> List[Dict[str, Any]]:

@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple, Dict, Any
 
 from pydantic import BaseModel
 
-from src.second_brain.chunker import Chunk, chunk_markdown
+from second_brain.chunker import Chunk, chunk_markdown
 
 
 class DocumentMetadata(BaseModel):

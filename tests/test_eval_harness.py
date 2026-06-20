@@ -3,7 +3,7 @@
 Tests loading (35+ queries), scoring range, mock run, result shape.
 """
 
-from src.second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric
+from second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric
 
 
 def test_loads_golden_queries():

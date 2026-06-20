@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from src.second_brain.ingest import ingest, get_status
+from second_brain.ingest import ingest, get_status
 
 app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0a MVP")
 
@@ -47,8 +47,10 @@ def ingest_cmd(
         raise typer.Exit(code=1)
 
     summary = ingest(path, zone_override=zone)
+    failed = summary.get("failed", 0)
+    extra = f" failed={failed}" if failed else ""
     typer.echo(
-        f"Ingest complete: added={summary['added']} skipped={summary['skipped']} "
+        f"Ingest complete: added={summary['added']} skipped={summary['skipped']}{extra} "
         f"(from {summary['total_files']} files)"
     )
 
@@ -67,7 +69,7 @@ def query_cmd(
     Uses immortal baseline_rag + synthesizer (1 LLM call).
     """
     # Import inside to avoid top-level dep on litellm when not needed (e.g. ingest only, smoke)
-    from src.second_brain.synthesizer import synthesize
+    from second_brain.synthesizer import synthesize
 
     resp = synthesize(question, limit=limit, zone=zone, profile=profile)
 
@@ -94,9 +96,9 @@ def doctor_cmd(
 
     # Check core modules
     try:
-        from src.second_brain import eval_harness
-        from src.second_brain.retriever import baseline_rag
-        from src.second_brain.synthesizer import synthesize
+        from second_brain import eval_harness
+        from second_brain.retriever import baseline_rag
+        from second_brain.synthesizer import synthesize
         typer.echo("  Modules: OK (retriever, synthesizer, harness)")
     except Exception as e:
         issues.append(f"module load: {e}")
@@ -111,7 +113,7 @@ def doctor_cmd(
 
     # Verify acceptance (from harness)
     try:
-        from src.second_brain.eval_harness import verify_phase0a_acceptance
+        from second_brain.eval_harness import verify_phase0a_acceptance
         v = verify_phase0a_acceptance()
         typer.echo(f"  Phase 0a acceptance: {'MET' if v.get('acceptance_met') else 'NOT MET'} (files={v.get('demo_md_files')}, citations={v.get('sample_query_citations')})")
     except Exception as e:

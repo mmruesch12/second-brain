@@ -10,16 +10,16 @@ from pathlib import Path
 from datetime import datetime
 from typing import List
 
-from src.second_brain.store import (
+from second_brain.store import (
     add_document,
     get_manifest_status,
     search,
     get_data_dir,
     reset_index,
 )
-from src.second_brain.models import DocumentMetadata
-from src.second_brain.chunker import Chunk
-from src.second_brain import embeddings as emb_mod
+from second_brain.models import DocumentMetadata
+from second_brain.chunker import Chunk
+from second_brain import embeddings as emb_mod
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def tmp_data_dir(monkeypatch):
         tmp = Path(td)
         monkeypatch.setenv("SECOND_BRAIN_DATA_DIR", str(tmp))
         # force re-eval of module default
-        import src.second_brain.store as store_mod
+        import second_brain.store as store_mod
         store_mod.DEFAULT_DATA_DIR = tmp
         reset_index()
         yield tmp
@@ -110,7 +110,7 @@ def test_zone_filter_in_search(monkeypatch):
 
     # Search with zone
     hits_p = search("anything", limit=10, data_zone="PERSONAL")
-    assert all(h["data_zone"] == "PERSONAL" for h in hits_p) or len(hits_p) == 0  # depending on filter impl
+    assert len(hits_p) >= 1 and all(h["data_zone"] == "PERSONAL" for h in hits_p)
 
     hits_all = search("anything", limit=10)
     assert len(hits_all) >= 2

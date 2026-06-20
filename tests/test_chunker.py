@@ -5,7 +5,7 @@ Run with: python -m pytest tests/ -q
 
 import pytest
 
-from src.second_brain.chunker import chunk_markdown, Chunk
+from second_brain.chunker import chunk_markdown, Chunk
 
 
 def test_empty_input():

@@ -11,6 +11,7 @@ Baseline scores recorded in progress for acceptance.
 
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -72,12 +73,21 @@ def _get_demo_corpus_hits(q: Dict[str, Any], n: int = 3) -> List[Dict[str, Any]]
 def compute_rubric(query: str, hits: List[Dict[str, Any]], answer: str) -> tuple[int, Dict[str, int]]:
     """Heuristic 5-dim rubric scorer (1-3 each). Good enough for baseline on synthetic corpus."""
     n = max(1, len(hits))
-    grounding = min(3, 1 + (n - 1))  # more supporting chunks = better grounding
+    q_lower = (query or "").lower()
+    q_words = set(re.findall(r'\w+', q_lower)) - {'the', 'and', 'for', 'with', 'from', 'that', 'this'}
+    ctx = (answer + " " + " ".join(h.get("content", "") for h in hits)).lower()
+    overlap = len(q_words & set(re.findall(r'\w+', ctx)))
+    grounding = min(3, 1 + (n - 1))
+    if overlap >= 3:
+        grounding = min(3, grounding + 1)
     citation = 3 if n >= 3 else (2 if n >= 2 else 1)
     completeness = min(3, n)
+    if overlap >= 2:
+        completeness = min(3, completeness + 1)
     concision = 3 if len(answer) < 450 else (2 if len(answer) < 700 else 1)
-    action = 2 if any(k in (answer + " ".join(h.get("content", "") for h in hits)).lower()
-                      for k in ("next", "action", "follow", "recommend")) else 1
+    action = 2 if any(k in ctx for k in ("next", "action", "follow", "recommend")) else 1
+    if any(k in q_lower for k in ("action", "next", "recommend", "what should")) and "next" in ctx:
+        action = 3
     total = grounding + citation + completeness + concision + action
     return total, {
         "grounding": grounding,
@@ -98,7 +108,7 @@ def run_golden_eval(use_real_retrieval: bool = False, limit: int = 5, out_dir: s
         if use_real_retrieval:
             global baseline_rag
             if baseline_rag is None:
-                from src.second_brain.retriever import baseline_rag as _br
+                from second_brain.retriever import baseline_rag as _br
                 baseline_rag = _br
             try:
                 hits = baseline_rag(q["query"], limit=limit, zone=None)
@@ -161,7 +171,7 @@ def verify_phase0a_acceptance() -> Dict[str, Any]:
     # ingest --status is wired in cli (from prior)
     manifest_supported = True
 
-    met = (n_files >= 9) and (n_citations >= 3) and manifest_supported  # 9 demo files close to 10
+    met = (n_files >= 10) and (n_citations >= 3) and manifest_supported
 
     return {
         "demo_md_files": n_files,

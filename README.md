@@ -18,10 +18,10 @@ This project serves both personal productivity and as a living, public demonstra
 
 ## Project Status
 
-- **Version**: 0.2 (consensus-hardened MVP)
-- **Status**: Planning — PRD v0.2 complete; implementation not started
+- **Version**: 0.0.1 (Phase 0a baseline)
+- **Status**: Phase 0a complete (spec gates + Markdown ingest + baseline RAG + eval + CLI). See progress.md and PRD for details.
 - **Owner**: Matt Ruesch
-- **Date**: June 19, 2026
+- **Date**: 2026-06-19
 
 **Current PRD:** [personal-agentic-second-brain-prd-v2.md](./personal-agentic-second-brain-prd-v2.md)  
 **Previous:** [personal-agentic-second-brain-prd.md](./personal-agentic-second-brain-prd.md) (v0.1, superseded)
@@ -64,30 +64,46 @@ See the v0.2 PRD for complete scoping, phase gates, and design principles.
 
 ## Phasing & Timeline
 
-| Phase | Focus | Target |
-|-------|-------|--------|
-| 0a | Markdown ingest + baseline RAG + eval harness | 2–3 days |
-| 0b | PDF ingest + quick capture | 1–2 days |
-| 1 | Retrieval hardening (no new agents) | 2–3 days |
-| 2 | Citation verifier + starter rituals | 1–2 days |
-| 3 | Reflection CLI + real-world iteration | 1 weekend + 3–4 weeks |
+| Phase | Focus | Target | Status |
+|-------|-------|--------|--------|
+| 0a | Markdown ingest + baseline RAG + eval harness + CLI doctor | 2–3 days | **Complete** (on demo/) |
+| 0b | PDF ingest + quick capture | 1–2 days | Not started |
+| 1 | Retrieval hardening (no new agents) | 2–3 days | Not started |
+| 2 | Citation verifier + starter rituals | 1–2 days | Not started |
+| 3 | Reflection CLI + real-world iteration | 1 weekend + 3–4 weeks | Not started |
 
-Target: Useful, personally valuable MVP in 6–10 focused days (Phases 0–2), then iterate in daily use.
+Target: Useful, personally valuable MVP in 6–10 focused days (Phases 0–2), then iterate in daily use. Phase 0a acceptance verified via harness + `sb doctor`. See `docs/progress.md`.
 
 ---
 
-## Getting Started (Coming Soon)
+## Getting Started
 
-Once implementation begins:
+### Prerequisites (local-first)
+- Python 3.12+
+- Ollama running locally with `nomic-embed-text` (for embeddings) and a chat model (e.g. `llama3.2` or `qwen2.5`)
+- `pip install -e .` (or `PYTHONPATH=src` for direct)
 
 ```bash
-sb capture "quick thought"
-sb ingest ./notes
-sb query "What were my key insights on X last month?"
-sb weekly
+# 1. Install editable + see CLI
+pip install -e .
+sb --help
+
+# 2. Health check (no LLM needed)
+sb doctor
+
+# 3. Ingest the demo corpus (or your markdown)
+sb ingest demo/notes
+
+# 4. Query (requires Ollama + nomic-embed-text pulled)
+sb query "What were the key decisions from Project Falcon?"
+
+# Status / manifest
+sb ingest --status
 ```
 
-See the v0.2 PRD for technical architecture (LanceDB, LiteLLM, Ollama, etc.).
+**Note**: Full runtime requires Ollama + models. Use `sb doctor` and `PYTHONPATH=src python -m pytest` (with mocks) for verification without all deps.
+
+See the v0.2 PRD for architecture (LanceDB, LiteLLM/Ollama, DataZones, .secondbrainignore). Current Phase 0a implements immortal `baseline_rag`, cited synthesis, golden eval harness (demo corpus), and `sb ingest|query|doctor`. Later phases add PDF, rituals (`sb weekly`), verifier per gates.
 
 ---
 

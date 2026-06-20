@@ -15,9 +15,9 @@ from typing import List, Dict, Any, Optional
 
 import lancedb
 
-from src.second_brain.models import DocumentMetadata
-from src.second_brain.chunker import Chunk
-from src.second_brain.embeddings import embed_text, EMBED_DIM
+from second_brain.models import DocumentMetadata
+from second_brain.chunker import Chunk
+from second_brain.embeddings import embed_text, EMBED_DIM
 
 DEFAULT_DATA_DIR = Path(os.getenv("SECOND_BRAIN_DATA_DIR", Path.home() / ".secondbrain")).expanduser()
 TABLE_NAME = "chunks"
@@ -163,10 +163,10 @@ def search(
     except Exception:
         return []
     q = tbl.search(vec).limit(limit)
-    if data_zone:
-        # Simple filter; Lance supports .where in newer, fallback post-filter for MVP
-        q = q.where(f"data_zone = '{data_zone}'")
     results = q.to_list()
+    if data_zone:
+        # Reliable post-filter (MVP; works regardless of Lance .where support)
+        results = [r for r in results if r.get("data_zone") == data_zone]
     # strip heavy vector from results for caller convenience
     for r in results:
         r.pop("vector", None)
