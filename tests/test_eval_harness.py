@@ -3,7 +3,7 @@
 Tests loading (35+ queries), scoring range, mock run, result shape.
 """
 
-from second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric, verify_phase0a_acceptance, verify_phase2_acceptance, verify_phase3_acceptance
+from second_brain.eval_harness import load_golden_queries, run_golden_eval, compute_rubric, verify_phase0a_acceptance, verify_phase2_acceptance, verify_phase3_acceptance, run_weekly_eval_ritual
 from unittest.mock import patch
 
 
@@ -185,3 +185,23 @@ def test_reflect_helpers_direct(tmp_path):
     assert "## 2026-06-21 (reflect --days 14)" in c
     assert "- [ ] do X [demo/y.md: Y]" in c
     # cap boundary in full reflect tested via harness; here ok
+
+
+def test_eval_ritual_and_trend(tmp_path):
+    """Phase3 weekly eval ritual: exercises run_weekly + trend (no prior first, then delta on second). Uses isolated out_dir, no CWD pollution. Strict result keys."""
+    outd = str(tmp_path / "eres")
+    r1 = run_weekly_eval_ritual(use_real_retrieval=False, out_dir=outd)
+    assert r1["num_queries"] >= 30
+    assert "avg_score" in r1 and "trend" in r1
+    assert "ritual_note" in r1
+    tr1 = r1["trend"]
+    assert "note" in tr1 or "no prior" in str(tr1)  # first run no prior
+    # second run in same dir should see prior (delta computable)
+    r2 = run_weekly_eval_ritual(use_real_retrieval=False, out_dir=outd)
+    tr2 = r2.get("trend", {})
+    assert "delta_avg" in tr2 or "prior_avg" in tr2  # trend present (pre-snapshot before overwrite of same-day dated file)
+    assert r2["num_queries"] == r1["num_queries"]
+    # files produced: may be 1 due to same-day overwrite of baseline-YYYY-MM-DD.json; trend still computed from snapshot
+    import glob, os
+    js = glob.glob(os.path.join(outd, "*.json"))
+    assert len(js) >= 1

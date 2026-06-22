@@ -16,12 +16,17 @@ from typing import List, Dict, Any, Optional
 
 import lancedb
 
-from second_brain.models import DocumentMetadata
+from second_brain.models import DocumentMetadata, DecisionLogEntry
 from second_brain.chunker import Chunk
 from second_brain.embeddings import embed_text, EMBED_DIM
 
 DEFAULT_DATA_DIR = Path(os.getenv("SECOND_BRAIN_DATA_DIR", Path.home() / ".secondbrain")).expanduser()
 TABLE_NAME = "chunks"
+
+
+def _get_data_dir_path() -> Path:
+    """Return the data dir path WITHOUT mkdir (for read-only list paths to avoid side effects)."""
+    return DEFAULT_DATA_DIR
 
 
 def get_data_dir() -> Path:
@@ -316,3 +321,71 @@ def reset_index() -> None:
     ldb = Path(_lancedb_uri())
     if ldb.exists():
         shutil.rmtree(ldb, ignore_errors=True)
+
+
+def log_decision(text: str, citation: Optional[str] = None) -> str:
+    """Append a timestamped decision entry to decisions.jsonl in get_data_dir().
+    Pure append (no retrieval/LLM/egress). Path is gitignored via data dir rules.
+    Returns the log file path (relative form for user msg).
+    """
+    import json as _json
+    from datetime import datetime as _datetime, timezone as _tz
+    ddir = get_data_dir()
+    logp = ddir / "decisions.jsonl"
+    entry_model = DecisionLogEntry(
+        timestamp=_datetime.now(_tz.utc).isoformat() + "Z",
+        text=(text or "").strip(),
+        citation=(citation or "").strip(),
+    )
+    entry = entry_model.model_dump()
+    with open(logp, "a", encoding="utf-8") as f:
+        f.write(_json.dumps(entry) + "\n")
+    # return nice relative if possible
+    try:
+        from pathlib import Path as _P
+        sp = str(logp)
+        if "/.secondbrain/" in sp:
+            return "~/.secondbrain/decisions.jsonl"
+        return sp
+    except Exception:
+        return str(logp)
+
+
+def list_decisions(since: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    """Return recent decisions (most recent first). Optional since=YYYY-MM-DD prefix filter on timestamp.
+    Uses read-only path to avoid mkdir side-effect on pure list (e.g. doctor, sb decisions before any decide)."""
+    import json as _json
+    from datetime import datetime as _datetime
+    ddir = _get_data_dir_path()
+    logp = ddir / "decisions.jsonl"
+    if not logp.exists():
+        return []
+    entries: List[Dict[str, Any]] = []
+    since_dt = _parse_since(since) if since else None
+    try:
+        with open(logp, "r", encoding="utf-8") as f:
+            for line in f:
+                ln = line.strip()
+                if not ln:
+                    continue
+                try:
+                    e = _json.loads(ln)
+                    try:
+                        e = DecisionLogEntry.model_validate(e).model_dump()
+                    except Exception:
+                        pass  # keep raw for compat if old rows
+                    if since_dt:
+                        try:
+                            ts = str(e.get("timestamp", ""))[:10]
+                            dts = _parse_since(ts)
+                            if dts and dts < since_dt:
+                                continue
+                        except Exception:
+                            pass
+                    entries.append(e)
+                except Exception:
+                    continue
+    except Exception:
+        return []
+    entries.sort(key=lambda x: str(x.get("timestamp", "")), reverse=True)
+    return entries[:limit]

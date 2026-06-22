@@ -18,6 +18,8 @@ from second_brain.store import (
     reset_index,
     fetch_by_filter,
     _apply_metadata_filters,
+    log_decision,
+    list_decisions,
 )
 from second_brain.models import DocumentMetadata
 from second_brain.chunker import Chunk
@@ -265,3 +267,26 @@ def test_legacy_rows_missing_cols(monkeypatch):
     # since on missing ma: keeps (lenient)
     filtered3 = _apply_metadata_filters([legacy], since="2026-01-01")
     assert len(filtered3) == 1
+
+
+def test_decision_log_append_list():
+    """Phase3: direct unit test for log_decision + list_decisions (append, most-recent, since filter, keys, empty, citation). Uses tmp fixture."""
+    # clean start (list should be empty)
+    assert list_decisions(limit=10) == []
+    p = log_decision("Decision A about Phoenix", citation="demo/notes/2026-06-05-acme-q3.md")
+    assert "decisions.jsonl" in p
+    # append second
+    log_decision("Decision B on Falcon sync")
+    entries = list_decisions(limit=5)
+    assert len(entries) == 2
+    assert entries[0]["text"] == "Decision B on Falcon sync"  # most recent first
+    assert entries[1]["citation"] == "demo/notes/2026-06-05-acme-q3.md"
+    assert "timestamp" in entries[0]
+    # since filter (future date -> none)
+    assert list_decisions(since="2030-01-01") == []
+    # since that matches first
+    recent = list_decisions(since="2026-01-01", limit=1)
+    assert len(recent) == 1 and "Falcon" in recent[0]["text"]
+    # citation empty str for absent (standardized)
+    log_decision("No cite decision")
+    assert any(e.get("citation") == "" for e in list_decisions(limit=1))

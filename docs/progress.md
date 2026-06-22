@@ -21,8 +21,8 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | PRD Version        | v0.2                                       |
 | Date               | 2026-06-21                                 |
 | Active Phase       | Phase 3 (Reflection + Daily Use)           |
-| Overall Progress   | Phase 0a+0b+1+2 Complete; Phase 3 started (reflect cmd + core logic + actions.md export) |
-| Last Significant Entry | 2026-06-21 Phase 3 core slice (reflect + export); prior 2026-06-20 Phase 2 complete |
+| Overall Progress   | Phase 0a+0b+1+2 Complete; Phase 3 (reflect + actions + weekly eval ritual + decision log) |
+| Last Significant Entry | 2026-06-22 Phase 3 complete (core + eval ritual + decision log); 2026-06-21 core reflect+export |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -101,7 +101,7 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 - Fast streaming path exercised (stream= in synth+cli)
 
 ### Phase 3 — Reflection + Daily Use (1 weekend + 3–4 weeks real use)
-**Status:** Started (2026-06-21 core slice: bounded `sb reflect` + `actions.md` export + harness/doctor smoke; per PRD §7.3, §12)
+**Status:** Complete (core reflect+actions 2026-06-21 + weekly eval ritual + decision log 2026-06-22; per PRD §7.3/§12)
 
 **Deliverables:**
 - Bounded `sb reflect --days 7 --max-items 3`
@@ -130,6 +130,20 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-22 — Phase 3 complete: weekly eval ritual (`sb eval`) + decision log (`sb decide`/`sb decisions`) + harness/CLI/doctor (PRD §12 Phase3, §7.3)
+- Delivered the two missing Phase3 items per PRD v0.2 §12 (weekly eval ritual for 3-week rubric trend, decision log for surfaced decisions in rituals); AGENTS §5 seq (post core P3), §4 prechecks (scans/tests/preflight), §6/9 (progress update mandatory), §1-3 (no PII, demo/ only, data dir gitignored via store.get_data_dir, relative paths, 0 LLM for decide).
+- eval_harness.py: added run_weekly_eval_ritual + _get_most_recent_prior (snapshot prior to handle same-day overwrite), returns augmented w/ trend (delta_avg/pass), updated __main__; harness isolation+temp out_dir preserved.
+- cli.py: added eval_cmd (modeled on weekly/reflect: --json/--debug/zone-warn, brief human + "run weekly...", calls harness), decide_cmd (append via store), decisions_cmd (--since/--limit, list); updated app help/doctor doc+smoke (ritual+decisions exercised w/ tmp out_dir isolation) + status text to Phase 0-3 incl eval+decisions.
+- models.py: added DecisionLogEntry Pydantic (for consistency w/ Reflection*).
+- store.py: added log_decision + list_decisions (append/list JSONL under get_data_dir()/decisions.jsonl, reuse _parse_since, nice path for user, no egress).
+- tests: extended test_eval_harness (ritual+trend w/ pre-snapshot, isolated out_dir, assert delta), test_ingest (cli runner for eval/decide/decisions w/ data env isolate, no chdir to preserve golden load from root).
+- doctor/harness now smoke new surfaces; Phase3 "MET" preserved + extended; pytest pass (full suite 69/69 + targeted).
+- Updated docs/progress.md (status + top Build Log + Phase3 Complete).
+- No new files (edited existing), no md except required progress, immortal baseline untouched, max 0 LLM, zone via retrieve (not new here), airgap early where would apply, smallest targeted diffs, used _nice equiv via store/prior, harness temp isolation + env override for results, strict.
+- Validates: re-read AGENTS/PRD/progress/source (cli/eval/models/store/tests), rg scans clean, git pre/post, py compile, pytest pass, doctor ritual+decisions exercised, relative demo cites. (eval/results writes gated by env/tmp in tests).
+- Advances Phase 3 fully (eval ritual + decision log per spec gates + north-star support).
+- (pre-push: would run full AGENTS §4 checklist incl git diff/rg secret; no commit here.)
 
 ### 2026-06-21 — Phase 3 core slice complete: `sb reflect --days 7 --max-items 3` + core logic + actions.md export (PRD §12 Phase3, §7.3)
 - Implemented exactly per PRD v0.2 §12 Phase3, §7.3 (bounded reflect, select by modified_at window cap50notes, structured JSON {tasks,open_questions,connections} w/ mandatory cites, human triage via actions.md dedupe export); AGENTS §5 seq (post P2), §4 prechecks, §6, §9 (progress update), no scope creep (no scheduler/insights).

@@ -13,7 +13,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import yaml
 
@@ -236,6 +236,69 @@ def run_golden_eval(use_real_retrieval: bool = False, limit: int = 5, out_dir: s
     return summary
 
 
+def _get_most_recent_prior(out_dir: str) -> Optional[Dict[str, Any]]:
+    """Find most recent prior dated eval result JSON (for ritual trend delta).
+    Globs only "baseline-*.json" (ritual always writes baseline- suffix); extracts date from filename or data["date"], sorts by parsed date desc.
+    """
+    from pathlib import Path
+    import glob
+    import json as _json
+    import re
+    from datetime import datetime as _dt
+    candidates = glob.glob(str(Path(out_dir) / "baseline-*.json"))
+    dated = []
+    for fp in candidates:
+        try:
+            with open(fp, "r", encoding="utf-8") as fh:
+                data = _json.load(fh)
+            dstr = data.get("date") or ""
+            # try parse full date from data["date"] or filename
+            m = re.search(r'(\d{4}-\d{2}-\d{2})', dstr) or re.search(r'(\d{4}-\d{2}-\d{2})', Path(fp).name)
+            if m:
+                d = _dt.strptime(m.group(1), "%Y-%m-%d")
+                dated.append((d, data))
+        except Exception:
+            continue
+    if not dated:
+        return None
+    dated.sort(key=lambda x: x[0], reverse=True)
+    return dated[0][1]
+
+
+def run_weekly_eval_ritual(use_real_retrieval: bool = False, out_dir: Optional[str] = None) -> Dict[str, Any]:
+    """First-class weekly eval ritual wrapper (Phase3 deliverable).
+    Delegates to run_golden_eval (writes fresh dated result), then augments with simple trend vs most recent prior.
+    Brief output in CLI; supports owner 3-week rubric trend tracking. No scheduler.
+    Use use_real_retrieval=True to exercise router like phase harness (isolation preserved via run_golden).
+    out_dir=None honors SECOND_BRAIN_EVAL_RESULTS_DIR for test isolation (else "eval/results").
+    """
+    if out_dir is None:
+        import os
+        out_dir = os.environ.get("SECOND_BRAIN_EVAL_RESULTS_DIR", "eval/results")
+    # snapshot prior BEFORE run (handles same-day overwrite of *-YYYY-MM-DD.json in run_golden)
+    prior = _get_most_recent_prior(out_dir)
+    summary = run_golden_eval(use_real_retrieval=use_real_retrieval, out_dir=out_dir)
+    trend: Dict[str, Any] = {}
+    if prior:
+        try:
+            delta_avg = round(summary.get("avg_score", 0) - prior.get("avg_score", 0), 2)
+            delta_pass = summary.get("pass_10_15", 0) - prior.get("pass_10_15", 0)
+            trend = {
+                "delta_avg": delta_avg,
+                "delta_pass": delta_pass,
+                "prior_date": prior.get("date"),
+                "prior_avg": prior.get("avg_score"),
+                "prior_pass": prior.get("pass_10_15"),
+            }
+        except Exception:
+            trend = {"note": "prior parse issue"}
+    else:
+        trend = {"note": "no prior result (first run in this out_dir or results/ empty)"}
+    summary["trend"] = trend
+    summary["ritual_note"] = "Run `sb eval` (or harness) weekly for trend toward 3-week upward rubric (Phase3 acceptance)."
+    return summary
+
+
 def verify_phase0a_acceptance() -> Dict[str, Any]:
     """Explicit verification of Phase 0a/Phase1 acceptance (PRD §12).
     Uses demo corpus; Phase1 adds retrieve/filter checks.
@@ -408,4 +471,7 @@ if __name__ == "__main__":
     print("Phase2 verify:", v2)
     v3 = verify_phase3_acceptance()
     print("Phase3 verify:", v3)
+    # Phase3 weekly eval ritual
+    ritual = run_weekly_eval_ritual(use_real_retrieval=False)
+    print("Weekly eval ritual:", ritual.get("trend"))
     print("Results written to eval/results/")

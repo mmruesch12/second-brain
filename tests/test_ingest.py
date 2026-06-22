@@ -433,3 +433,47 @@ def test_phase2_cli_quick_rituals_query_verify_smoke(monkeypatch):
         assert res.exit_code == 0
         assert "model_used" in res.output or "debug" in res.output.lower() or res.exit_code == 0
 
+
+def test_phase3_eval_decide_decisions_cli_smoke(monkeypatch, tmp_path):
+    """Phase3: sb eval (ritual), decide, decisions via CliRunner. Isolated data dir for log; no real home write; brief + json paths."""
+    import second_brain.store as store_mod
+    # isolate decisions log + eval results side (use env for ritual out_dir override too)
+    data_tmp = tmp_path / ".sbd3"
+    er_tmp = tmp_path / "er"
+    monkeypatch.setenv("SECOND_BRAIN_DATA_DIR", str(data_tmp))
+    monkeypatch.setenv("SECOND_BRAIN_EVAL_RESULTS_DIR", str(er_tmp))
+    store_mod.DEFAULT_DATA_DIR = data_tmp
+
+    runner = CliRunner()
+
+    # Note: no chdir here -- eval loads golden_queries.yaml relative to cwd (repo root); decide uses data dir isolation via env/DEFAULT (no cwd dep)
+    # eval ritual (brief human default)
+    res = runner.invoke(app, ["eval"])
+    assert res.exit_code == 0
+    assert "Eval ritual:" in res.output or "queries" in res.output
+    assert "Run this weekly" in res.output
+    # json
+    resj = runner.invoke(app, ["eval", "--json"])
+    assert resj.exit_code == 0
+    assert '"num_queries"' in resj.output or "num_queries" in resj.output
+
+    # decide
+    resd = runner.invoke(app, ["decide", "Adopt eval ritual for weekly trend; cite golden"])
+    assert resd.exit_code == 0
+    assert "Decision logged" in resd.output or "logged" in resd.output.lower()
+    # with citation + json
+    resd2 = runner.invoke(app, ["decide", "Falcon decision X", "--citation", "demo/notes/2026-06-01-falcon-sync.md", "--json"])
+    assert resd2.exit_code == 0
+    assert "Falcon" in resd2.output or '"citation"' in resd2.output
+
+    # decisions list
+    resds = runner.invoke(app, ["decisions", "--limit", "5"])
+    assert resds.exit_code == 0
+    assert "decisions" in resds.output.lower() or "Adopt" in resds.output or "Falcon" in resds.output
+    # since filter (no match ok)
+    ress = runner.invoke(app, ["decisions", "--since", "2030-01-01"])
+    assert ress.exit_code == 0
+    # json
+    resdsj = runner.invoke(app, ["decisions", "--json"])
+    assert resdsj.exit_code == 0
+    assert "[" in resdsj.output  # list json

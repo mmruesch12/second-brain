@@ -308,3 +308,12 @@ class ReflectionResponse(BaseModel):
     model_used: str = ""
     trace_id: Optional[str] = None
     note: Optional[str] = None  # e.g. empty retrieval or airgap note
+
+
+class DecisionLogEntry(BaseModel):
+    """Lightweight entry for `sb decide` / decision log (PRD Phase 3 deliverable).
+    Timestamped append-only log (no LLM). Stored as JSONL under data dir (gitignored).
+    """
+    timestamp: str
+    text: str
+    citation: Optional[str] = None

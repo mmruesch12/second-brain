@@ -9,7 +9,7 @@ import typer
 
 from second_brain.ingest import ingest, get_status
 
-app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0-3 MVP (reflect + actions.md)")
+app = typer.Typer(help="Personal Agentic Second Brain (sb) - Phase 0-3 MVP (reflect + actions.md + eval ritual + decisions)")
 
 
 @app.command("ingest")
@@ -307,11 +307,104 @@ def reflect_cmd(
         typer.echo(f"\n[debug] model_used={resp.model_used} note={resp.note}")
 
 
+@app.command("eval")
+def eval_cmd(
+    json_out: bool = typer.Option(False, "--json", help="Output full JSON summary + trend"),
+    debug: bool = typer.Option(False, "--debug", help="Show full trace / response"),
+    zone: Optional[str] = typer.Option(None, "--zone", "-z", help="Zone (note: eval ritual targets demo corpus for trend)"),
+) -> None:
+    """Weekly eval ritual (Phase3): run golden harness, print brief scores + trend delta vs most recent prior dated result in eval/results/.
+    Owner runs weekly for 3-week rubric trend acceptance. Uses harness (no new LLM calls). Default brief human output.
+    Honors SECOND_BRAIN_EVAL_RESULTS_DIR for test isolation (normal use: eval/results/).
+    """
+    from second_brain.eval_harness import run_weekly_eval_ritual
+    import json as _json
+
+    if zone and str(zone).lower() in ("all", "*"):
+        typer.echo("Warning: --zone all bypasses DataZone enforcement (cross-zone retrieval). Use specific zones for privacy.")
+    summary = run_weekly_eval_ritual(use_real_retrieval=False)  # default mock path for ritual speed; real via harness direct or use_real=True in tests
+
+    if json_out or debug:
+        try:
+            print(_json.dumps(summary, indent=2))
+        except Exception:
+            print(summary)
+    else:
+        nq = summary.get("num_queries", 0)
+        avg = summary.get("avg_score", 0)
+        base = summary.get("avg_score_baseline", 0)
+        p10 = summary.get("pass_10_15", 0)
+        tr = summary.get("trend", {})
+        print(f"Eval ritual: {nq} queries | avg={avg}/15 (baseline={base}) | >=10/15: {p10}")
+        if "delta_avg" in tr:
+            print(f"  Trend: delta_avg={tr['delta_avg']} (prior_avg={tr.get('prior_avg')}), delta_passes={tr.get('delta_pass')}, prior={str(tr.get('prior_date',''))[:10]}")
+        else:
+            print(f"  {tr.get('note', 'no prior')}")
+        print("Run this weekly for trend (Phase3: aim 3-week upward rubric).")
+
+    if debug:
+        typer.echo(f"\n[debug] trend={summary.get('trend')}")
+
+
+@app.command("decide")
+def decide_cmd(
+    text: str = typer.Argument(..., help="Decision text to capture (e.g. 'Switch to local nomic-embed; beat baseline on golden')"),
+    citation: Optional[str] = typer.Option(None, "--citation", "-c", help="Optional citation e.g. 'demo/notes/xx.md' or note ref"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON confirmation"),
+    debug: bool = typer.Option(False, "--debug", help="Show full trace"),
+) -> None:
+    """Log decision (Phase3 lightweight deliverable). Pure append (timestamp + text + opt citation) to private decisions.jsonl under data dir. 0 LLM calls. Gitignored."""
+    from second_brain import store as _store
+    import json as _json
+
+    log_path = _store.log_decision(text, citation=citation)
+    # wrapper for cli confirmation; authoritative ts/citation ("" for absent) from persisted log_decision row
+    entry = {"text": text, "citation": citation or "", "logged_to": log_path}
+    if json_out or debug:
+        print(_json.dumps(entry, indent=2))
+    else:
+        print(f"Decision logged: {text[:60]}{'...' if len(text)>60 else ''} (to {log_path})")
+        if citation:
+            print(f"  citation: {citation}")
+        print("Review with: sb decisions")
+
+    if debug:
+        typer.echo(f"\n[debug] path={log_path}")
+
+
+@app.command("decisions")
+def decisions_cmd(
+    since: Optional[str] = typer.Option(None, "--since", help="Show only decisions on/after YYYY-MM-DD"),
+    limit: int = typer.Option(10, "--limit", help="Max entries to list (most recent first)"),
+    json_out: bool = typer.Option(False, "--json", help="Output full JSON list"),
+    debug: bool = typer.Option(False, "--debug", help="Show full trace"),
+) -> None:
+    """List recent decisions from log (Phase3)."""
+    from second_brain import store as _store
+    import json as _json
+
+    entries = _store.list_decisions(since=since, limit=limit)
+    if json_out or debug:
+        print(_json.dumps(entries, indent=2))
+    else:
+        if not entries:
+            print("No decisions logged yet. Use `sb decide \"text here\" [--citation ref]`.")
+            return
+        print(f"Decisions (most recent {len(entries)}):")
+        for e in entries:
+            ts = str(e.get("timestamp", ""))[:16].replace("T", " ")
+            cit = f" [{e.get('citation')}]" if e.get("citation") else ""
+            txt = str(e.get("text", ""))
+            print(f"  {ts}: {txt}{cit}")
+    if debug:
+        typer.echo(f"\n[debug] count={len(entries)} since={since}")
+
+
 @app.command("doctor")
 def doctor_cmd(
     zone: Optional[str] = typer.Option(None, "--zone", help="Filter health to zone"),
 ) -> None:
-    """Health check (smoke test for Phase 0a/0b + Phase 1 + Phase 2). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13. Phase1/2 retrieve/router/verifier/rituals/stream exercised."""
+    """Health check (smoke test for Phase 0a/0b + Phase 1 + Phase 2 + Phase3). Reports module status, acceptance, basic stats incl. PDF parse per PRD §13. Phase1/2/3 retrieve/router/verifier/rituals/reflect/eval/decisions exercised."""
     typer.echo("sb doctor — Personal Agentic Second Brain health check")
     issues = []
 
@@ -413,6 +506,29 @@ def doctor_cmd(
     except Exception as e:
         issues.append(f"phase3 verify: {e}")
 
+    # Phase3 eval ritual smoke (uses harness; isolated out_dir to avoid CWD/results pollution)
+    try:
+        from second_brain.eval_harness import run_weekly_eval_ritual
+        import tempfile
+        import shutil
+        od = tempfile.mkdtemp()
+        try:
+            er = run_weekly_eval_ritual(use_real_retrieval=False, out_dir=od)
+        finally:
+            shutil.rmtree(od, ignore_errors=True)
+        tdelta = er.get("trend", {}).get("delta_avg", "n/a")
+        typer.echo(f"  Phase3 eval-ritual: queries={er.get('num_queries')}, avg={er.get('avg_score')}, trend_delta={tdelta}")
+    except Exception as e:
+        issues.append(f"phase3 eval ritual: {e}")
+
+    # Phase3 decisions log smoke (list uses read-only path (no mkdir); log func exercised in CLI/tests)
+    try:
+        from second_brain import store as _st
+        ds = _st.list_decisions(limit=3)
+        typer.echo(f"  Phase3 decisions: listed={len(ds)} (log path under data dir)")
+    except Exception as e:
+        issues.append(f"phase3 decisions: {e}")
+
     if zone:
         typer.echo(f"  Zone filter: {zone}")
 
@@ -421,7 +537,7 @@ def doctor_cmd(
         for i in issues:
             typer.echo(f"    - {i}")
     else:
-        typer.echo("  Status: healthy (Phase 0a/0b + Phase1/2 + Phase3 reflect/actions.md smoke OK)")
+        typer.echo("  Status: healthy (Phase 0a/0b + Phase1/2 + Phase3 reflect/actions/eval-ritual/decisions smoke OK)")
 
     raise typer.Exit(code=1 if issues else 0)
 
