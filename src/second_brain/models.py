@@ -288,3 +288,23 @@ class SynthesisResponse(BaseModel):
     trace_id: Optional[str] = None
     egress: bool = False
     model_used: str = ""
+
+
+class ReflectionItem(BaseModel):
+    """One extracted item for reflect (task / question / connection). Mandatory citation per PRD §7.3."""
+    text: str
+    citation: str  # e.g. "demo/notes/2026-06-05-acme-q3.md: Acme Q3"
+    quote: str = ""
+
+
+class ReflectionResponse(BaseModel):
+    """Structured output for `sb reflect` per PRD §7.3 / Phase 3.
+    tasks / open_questions / connections lists; each item cited.
+    Uses retrieve path (1 LLM target for extraction).
+    """
+    tasks: List[ReflectionItem] = []
+    open_questions: List[ReflectionItem] = []
+    connections: List[ReflectionItem] = []
+    model_used: str = ""
+    trace_id: Optional[str] = None
+    note: Optional[str] = None  # e.g. empty retrieval or airgap note

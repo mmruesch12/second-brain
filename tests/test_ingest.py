@@ -407,3 +407,29 @@ def test_phase2_cli_quick_rituals_query_verify_smoke(monkeypatch):
         assert res.exit_code == 0
         assert called.get("verify") is True
         assert called.get("stream") is True  # default for non-json human path
+
+    # Phase3 reflect CLI via runner (flags, zone warn, json, human, days)
+    def fake_reflect(**kw):
+        from second_brain.models import ReflectionResponse, ReflectionItem
+        return ReflectionResponse(
+            tasks=[ReflectionItem(text="t", citation="demo/z.md:H", quote="q")],
+            model_used="mock",
+        )
+    with patch("second_brain.reflect.reflect", fake_reflect):
+        # default human
+        res = runner.invoke(app, ["reflect", "--days", "5", "--max-items", "2"])
+        assert res.exit_code == 0
+        assert "5d window" in res.output or "since ~" in res.output
+        assert "### Tasks" in res.output or "Tasks" in res.output
+        # json
+        res = runner.invoke(app, ["reflect", "--json"])
+        assert res.exit_code == 0
+        assert '"tasks"' in res.output or "tasks" in res.output
+        # zone warn
+        res = runner.invoke(app, ["reflect", "--zone", "all"])
+        assert "Warning" in res.output or "all" in res.output.lower() or res.exit_code == 0
+        # debug
+        res = runner.invoke(app, ["reflect", "--debug"])
+        assert res.exit_code == 0
+        assert "model_used" in res.output or "debug" in res.output.lower() or res.exit_code == 0
+

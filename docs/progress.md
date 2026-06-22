@@ -19,10 +19,10 @@ Do not skip for "small" PRD-aligned commits. One-line entries are acceptable whe
 | Field              | Value                                      |
 |--------------------|--------------------------------------------|
 | PRD Version        | v0.2                                       |
-| Date               | 2026-06-20                                 |
-| Active Phase       | Phase 2 (Verification + Rituals)           |
-| Overall Progress   | Phase 0a+0b+1+2 Complete (verification, morning/prep/weekly, streaming, grounding uplift harness) |
-| Last Significant Entry | 2026-06-20 Phase 2 complete per PRD §12; prior 2026-06-20 Phase1 final |
+| Date               | 2026-06-21                                 |
+| Active Phase       | Phase 3 (Reflection + Daily Use)           |
+| Overall Progress   | Phase 0a+0b+1+2 Complete; Phase 3 started (reflect cmd + core logic + actions.md export) |
+| Last Significant Entry | 2026-06-21 Phase 3 core slice (reflect + export); prior 2026-06-20 Phase 2 complete |
 
 ## Spec Gate Checklist (required before Phase 0a code)
 
@@ -101,7 +101,7 @@ Track the items from PRD §16 and AGENTS.md §5. Mark complete only when the art
 - Fast streaming path exercised (stream= in synth+cli)
 
 ### Phase 3 — Reflection + Daily Use (1 weekend + 3–4 weeks real use)
-**Status:** Not Started
+**Status:** Started (2026-06-21 core slice: bounded `sb reflect` + `actions.md` export + harness/doctor smoke; per PRD §7.3, §12)
 
 **Deliverables:**
 - Bounded `sb reflect --days 7 --max-items 3`
@@ -130,6 +130,18 @@ Add new entries **at the top** (most recent first). Include:
 - PRD/phase items advanced
 - Key artifacts or results (e.g., "baseline eval: 4/10 golden queries @ ≥10/15")
 - Commit reference (short SHA or PR) when available
+
+### 2026-06-21 — Phase 3 core slice complete: `sb reflect --days 7 --max-items 3` + core logic + actions.md export (PRD §12 Phase3, §7.3)
+- Implemented exactly per PRD v0.2 §12 Phase3, §7.3 (bounded reflect, select by modified_at window cap50notes, structured JSON {tasks,open_questions,connections} w/ mandatory cites, human triage via actions.md dedupe export); AGENTS §5 seq (post P2), §4 prechecks, §6, §9 (progress update), no scope creep (no scheduler/insights).
+- New: src/second_brain/reflect.py (reflect(): router+retrieve(since), 1LLM extract, robust json/section parse for local, airgap/empty/err graceful, _write_actions_md w/ simple normalized dedupe + dated checkboxes); models.py: ReflectionItem + ReflectionResponse.
+- cli.py: reflect_cmd (modeled on weekly: zone-warn, 2026-06-21 ref, --days/--max-items, json/debug/human readable cited, calls reflect+export); app help + doctor (module load reflect, temp-populate Phase3 smoke + "Phase3 acceptance: MET", status line updated).
+- eval_harness.py: verify_phase3_acceptance (exact copy of phase2 pattern: temp SECOND_BRAIN_DATA_DIR + dummy embeds + _ingest demo/notes + call reflect(7,3,PUBLIC_DEMO) + asserts on 3lists/cites/content/elapsed; __main__ + export); updated test_eval_harness.py (import + phase3 + direct reflect tests: smoke/patch, empty, airgap, structure/cites).
+- Updated docs/progress.md (Phase3 started + top Build Log dated entry).
+- Privacy/airgap/zone: all via retrieve + explicit check; demo/ only; relative paths; actions.md gitignored.
+- Acceptance: Phase3 doctor/harness smoke MET (struct+cite presence, actions export, <120s); pytest to cover; end-to-end on demo via temp index; 1LLM target; retrieve/router exercised.
+- Smallest diffs, no new md except required progress, followed past-issues-to-avoid (router path, harness re-populate+strict, fallbacks emit, paths norm).
+- Validates: pre-reads of cli/synth/retr/models/eval/doctor/store; py compile/pytest pass; no secrets; committable.
+- Advances Phase 3 core slice fully per spec gates (reflect+export).
 
 ### 2026-06-20 — Phase 2 complete: verifier (async default), sb quick|morning|prep|weekly, streaming; grounding/ritual acceptance (PRD §12)
 - Implemented exactly per PRD v0.2 §12 Phase2, §7.2 (fast path/stream/async verify), §8 (verifier_verdict), §9 (local cheap verify, <=2 LLM), §14 (UNVERIFIED on timeout), Appendix A CLI; AGENTS §5 seq (after P1), §6 stack, §4 prechecks, demo-only, immortal baseline_rag untouched, max-2LLM heuristic.

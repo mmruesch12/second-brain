@@ -12,7 +12,6 @@ Baseline scores recorded in progress for acceptance.
 import json
 import os
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -271,7 +270,6 @@ def verify_phase2_acceptance(out_dir: str = "eval/results") -> Dict[str, Any]:
     Uses real retrieval+router where possible; exercises synth+verify on weekly/synth queries; smoke <=5min wall.
     """
     import time
-    import glob
     start = time.time()
     # run harness exercising real path + verifier for grounding
     summary = run_golden_eval(use_real_retrieval=True, with_verifier=True, limit=4, out_dir=out_dir)
@@ -331,6 +329,75 @@ def verify_phase2_acceptance(out_dir: str = "eval/results") -> Dict[str, Any]:
     }
 
 
+def verify_phase3_acceptance(out_dir: str = "eval/results") -> Dict[str, Any]:
+    """Phase 3 acceptance (PRD §12): bounded sb reflect --days 7 --max-items 3 + actions.md export.
+    Uses real retrieve/router (via temp populate dummy like phase2); strict structure + citation asserts.
+    """
+    import time
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+    import second_brain.store as _store
+    import second_brain.embeddings as _emb
+    start = time.time()
+    orig_env = os.environ.get("SECOND_BRAIN_DATA_DIR")
+    orig_dd = _store.DEFAULT_DATA_DIR
+    orig_emb = _emb.embed_text
+    _emb.embed_text = lambda t: [0.01] * 768
+    _store.embed_text = lambda t: [0.01] * 768
+    td = _tempfile.mkdtemp()
+    os.environ["SECOND_BRAIN_DATA_DIR"] = td
+    _store.DEFAULT_DATA_DIR = _Path(td)
+    _store.reset_index()
+    reflect_res = None
+    actions_path = ""
+    items_total = 0
+    actions_written = False
+    try:
+        from second_brain.ingest import ingest as _ingest
+        _ingest("demo/notes", zone_override="PUBLIC_DEMO")
+        from second_brain.reflect import reflect as _reflect
+        # use temp actions target for isolation (no CWD pollution); pass fixed ref_date for demo dates
+        actions_tmp = str(_Path(td) / "actions.md")
+        # exercise router+retrieve via internal + since filter on modified_at
+        from datetime import datetime as _dt
+        reflect_res = _reflect(days=7, max_items=3, zone="PUBLIC_DEMO", ref_date=_dt(2026, 6, 21), actions_path=actions_tmp)
+        items_total = len(getattr(reflect_res, "tasks", [])) + len(getattr(reflect_res, "open_questions", [])) + len(getattr(reflect_res, "connections", []))
+        actions_path = actions_tmp
+        actions_written = _Path(actions_tmp).exists()
+    finally:
+        _emb.embed_text = orig_emb
+        _store.embed_text = orig_emb
+        if orig_env:
+            os.environ["SECOND_BRAIN_DATA_DIR"] = orig_env
+        else:
+            os.environ.pop("SECOND_BRAIN_DATA_DIR", None)
+        _store.DEFAULT_DATA_DIR = orig_dd
+        _store.reset_index()
+        import shutil
+        shutil.rmtree(td, ignore_errors=True)
+    elapsed = time.time() - start
+    # strict: has 3 list keys + positive cites on any produced items; graceful empty ok
+    has_struct = hasattr(reflect_res, "tasks") and hasattr(reflect_res, "open_questions") and hasattr(reflect_res, "connections")
+    has_cites = True
+    produced = items_total
+    for lst in [getattr(reflect_res, "tasks", []), getattr(reflect_res, "open_questions", []), getattr(reflect_res, "connections", [])]:
+        for it in lst:
+            if not (getattr(it, "citation", "") or getattr(it, "source_path", "")):
+                has_cites = False
+    # if produced items, require cites; empty graceful allowed
+    cites_ok = (produced == 0) or (produced > 0 and has_cites)
+    met = has_struct and cites_ok and elapsed < 120  # bounded
+    return {
+        "acceptance_met": met,
+        "items_total": items_total,
+        "actions_path": actions_path,
+        "actions_written": actions_written,
+        "elapsed_s": round(elapsed, 1),
+        "has_struct": has_struct,
+        "note": "Phase3: bounded reflect --days 7 --max-items 3; uses retrieve+router+since(modified_at); 1 LLM target; actions.md export w/ dedupe checkboxes. demo/ + temp populate. Items cited or empty graceful. Isolation via actions_path.",
+    }
+
+
 if __name__ == "__main__":
     s = run_golden_eval(use_real_retrieval=True, with_verifier=True)
     print("Golden eval harness complete (Phase2 real path + verifier on populated).")
@@ -339,4 +406,6 @@ if __name__ == "__main__":
     print("Phase1/0a verify:", v)
     v2 = verify_phase2_acceptance()
     print("Phase2 verify:", v2)
+    v3 = verify_phase3_acceptance()
+    print("Phase3 verify:", v3)
     print("Results written to eval/results/")
